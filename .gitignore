@@ -1,5 +1,6 @@
-build/
+build/browser/cljs-runtime/
 node_modules/
 target/
 .shadow-cljs/
 .nrepl-port
+.cpcache/
