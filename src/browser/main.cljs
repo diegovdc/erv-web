@@ -33,7 +33,7 @@
                    :scale)
         freqs (map #(cps->midi (scale/deg->freq scale 10 %)) (range (count scale)))]
     (str "[" (->> (map #(utils/round2 2 (- % (first freqs))) freqs)
-                  (str/join ", "))
+                  (str/join ","))
          "]")
 
     ))
@@ -58,7 +58,6 @@
               :on-change #(swap! state assoc :set-size (-> % .-target .-value))}]]]
    [:h2 "Output scale (in midi, for an octave):"]
    (let [{:keys [generators set-size]} @state]
-     (println generators)
      (if (and (> (count generators) 0)
               (> (count set-size) 0))
        [:code {:style {:background-color "lightgray"}} (make-tidal-scale generators set-size)]
