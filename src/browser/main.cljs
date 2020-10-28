@@ -75,17 +75,19 @@
                        (int (state-map :mos/generator)))))
 
 (defn calculate-sub-mos [i state-map]
+  (println "submos" (state-map :mos/mos))
   (let [selected-mos (nth (state-map :mos/mos) i)]
+  (println "selected sub" (state-map :mos/mos))
     (swap! state assoc
            :mos/selected-mos selected-mos
            :mos/submos-data (-> selected-mos
-                                second submos/make-all-submos))))
+                                (submos/make-all-submos (state-map :mos/mos))))))
 
 (defn render-mos-table [mos]
-  (let [size (-> mos first second first)]
-    #_(println mos)
-    (map-indexed (fn [i [row intervals]]
-                   [:table {:key row}
+  (let [size (->> mos first (apply +))]
+    (println "table" mos)
+    (map-indexed (fn [i intervals]
+                   [:table {:key i}
                     [:thead [:tr [:td] [:td]]]
                     [:tbody
                      [:tr
@@ -99,35 +101,26 @@
                                        interval])
                                     intervals)]
                       [:td {:style {:display "inline-block"}}
-                       row [:button {:on-click #(calculate-sub-mos i @state)} "Generate Secondary MOS"]]]]])
+                       (count intervals) [:button {:on-click #(calculate-sub-mos i @state)} "Generate Secondary MOS"]]]]])
                  mos)))
 
 (defn render-submos-data [state-map]
+  (println (state-map :mos/submos-data))
   (conj [:div
-         (let [[row pattern] (@state :mos/selected-mos)]
-           [:h4 "Viewing data for row: " row ", pattern: " (str/join ", " pattern) ])]
+         (let [ pattern (@state :mos/selected-mos)]
+           [:h4 "Viewing data for row: " (count pattern) ", pattern: " (str/join ", " pattern) ])]
         (map-indexed (fn [i {:keys [pattern generator submos]}]
                        [:div {:key i}
-                        [:h5 {:style {:margin-bottom "3px"}} "Based on pattern: [" (str/join ", " (second pattern)) "], generator: " generator]
+                        [:h5 {:style {:margin-bottom "3px"}}
+                         "Based on pattern: [" (str/join ", " pattern) "], "
+                         "generator: " generator]
                         (map-indexed (fn [i sm] [:div {:key i} (str/join ", " sm)]) submos)])
                      (state-map :mos/submos-data))))
+(comment
+  (@state :mos/submos-data)
+  (@state :mos/selected-mos)
+  (@state :mos/mos))
 
-(@state :mos/submos-data)
-(@state :mos/selected-mos)
-(map #(submos/make-submos-for-generator % 3) (@state :mos/mos))
-
-(@state :mos/mos)
-
-(->> (@state :mos/mos)
-     first
-     second
-     submos/get-all-rotations
-     (map #(submos/groups->submos (submos/group % (second [1 [2 1]]))))
-     #_(deduplicate #{})
-     #_ :mos-set)
-
-#_(->> [submos/mos]
-       (map #(submos/groups->submos (submos/group % (second [1 submos/grouping-mos-pattern])))))
 (defn mos []
   [:div
    [:h1 "Moments of symmetry"]
@@ -155,7 +148,7 @@
      [:p "What do you want to see?"]
      [:button {:on-click #(swap! state assoc :view :mos)} "Moments of symmetry calculator"]
      [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]]))
-(js/console.log (@state :mos/submos-data))
+
 (defn start []
   (dom/render [app]
               (. js/document (getElementById "app"))))
