@@ -20,7 +20,7 @@
                         :generators "1,3,5,7"
                         :set-size "2"
                         :mos/period 12
-                        :mos/generator 4}))
+                        :mos/generator 5}))
 
 (defn parse-generators [generators]
   (-> generators (str/split #",")
