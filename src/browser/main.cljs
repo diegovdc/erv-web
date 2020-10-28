@@ -1,20 +1,26 @@
 (ns browser.main
-  (:require [reagent.core :as r]
-            [reagent.dom :as dom]
-            [erv.utils.core :as utils]
-            [erv.utils.conversions :refer [cps->midi]]
-            [erv.cps.core :as cps]
+  (:require [clojure.spec.alpha :as s]
             [clojure.string :as str]
+            [erv.cps.core :as cps]
+            [clojure.edn :as edn]
+            [erv.mos.mos :as mos]
+            [erv.mos.submos :as submos]
             [erv.scale.core :as scale]
-            [clojure.spec.alpha :as s]))
+            [erv.utils.conversions :refer [cps->midi]]
+            [erv.utils.core :as utils]
+            [reagent.core :as r]
+            [reagent.dom :as dom]))
 
                                         ; The output will be loadable through the `<script>` tag in any
                                         ; webpage, making it ideal for client-side code (e.g. React).
                                         ;
                                         ; More details at https://shadow-cljs.github.io/docs/UsersGuide.html#target-browser
 
-(def state (r/atom {:generators "1,3,5,7"
-                    :set-size "2"}))
+(defonce state (r/atom {:view :nil
+                        :generators "1,3,5,7"
+                        :set-size "2"
+                        :mos/period 12
+                        :mos/generator 4}))
 
 (defn parse-generators [generators]
   (-> generators (str/split #",")
@@ -37,8 +43,7 @@
          "]")
 
     ))
-
-(defn app []
+(defn cps []
   [:div
    [:h1 "Combination Product Sets Maker"]
    [:p "A tool for creating scales inspired by Erv Wilson's theories. "
@@ -63,6 +68,94 @@
        [:code {:style {:background-color "lightgray"}} (make-tidal-scale generators set-size)]
        [:small "Incomplete input"]))])
 
+
+(defn calculate-mos [state-map]
+  (swap! state assoc :mos/mos
+         (mos/make-mos (int (state-map :mos/period))
+                       (int (state-map :mos/generator)))))
+
+(defn calculate-sub-mos [i state-map]
+  (let [selected-mos (nth (state-map :mos/mos) i)]
+    (swap! state assoc
+           :mos/selected-mos selected-mos
+           :mos/submos-data (-> selected-mos
+                                second submos/make-all-submos))))
+
+(defn render-mos-table [mos]
+  (let [size (-> mos first second first)]
+    #_(println mos)
+    (map-indexed (fn [i [row intervals]]
+                   [:table {:key row}
+                    [:thead [:tr [:td] [:td]]]
+                    [:tbody
+                     [:tr
+                      [:td {:style {:background-color "#eee"}}
+                       (map-indexed (fn [i interval]
+                                      [:span {:key i
+                                              :style {:display "inline-block"
+                                                      :width (* 500 (/ interval size))
+                                                      :border-left "1px solid black"
+                                                      :border-bottom "1px solid black"}}
+                                       interval])
+                                    intervals)]
+                      [:td {:style {:display "inline-block"}}
+                       row [:button {:on-click #(calculate-sub-mos i @state)} "Generate Secondary MOS"]]]]])
+                 mos)))
+
+(defn render-submos-data [state-map]
+  (conj [:div
+         (let [[row pattern] (@state :mos/selected-mos)]
+           [:h4 "Viewing data for row: " row ", pattern: " (str/join ", " pattern) ])]
+        (map-indexed (fn [i {:keys [pattern generator submos]}]
+                       [:div {:key i}
+                        [:h5 {:style {:margin-bottom "3px"}} "Based on pattern: [" (str/join ", " (second pattern)) "], generator: " generator]
+                        (map-indexed (fn [i sm] [:div {:key i} (str/join ", " sm)]) submos)])
+                     (state-map :mos/submos-data))))
+
+(@state :mos/submos-data)
+(@state :mos/selected-mos)
+(map #(submos/make-submos-for-generator % 3) (@state :mos/mos))
+
+(@state :mos/mos)
+
+(->> (@state :mos/mos)
+     first
+     second
+     submos/get-all-rotations
+     (map #(submos/groups->submos (submos/group % (second [1 [2 1]]))))
+     #_(deduplicate #{})
+     #_ :mos-set)
+
+#_(->> [submos/mos]
+       (map #(submos/groups->submos (submos/group % (second [1 submos/grouping-mos-pattern])))))
+(defn mos []
+  [:div
+   [:h1 "Moments of symmetry"]
+   [:label [:span "Period" [:small " (determines the number of degrees in the scale)"]]
+    [:input {:style {:display "block"}
+             :placeholder "12"
+             :value (@state :mos/period)
+             :on-change #(swap! state assoc :mos/period (-> % .-target .-value))}]]
+   [:label [:span "Generator" [:small "An integer number"]]
+    [:input {:style {:display "block"}
+             :placeholder "4"
+             :value (@state :mos/generator)
+             :on-change #(swap! state assoc :mos/generator (-> % .-target .-value))}]]
+   [:button {:on-click #(calculate-mos @state)} "Calculate"]
+   (when (@state :mos/mos)
+     (render-mos-table (@state :mos/mos)))
+   (when (@state :mos/submos-data)
+     (render-submos-data @state))])
+
+(defn app []
+  (case (@state :view)
+    :cps (cps)
+    :mos (mos)
+    [:div [:h1 "Tools for exploring some of Erv Wilsons scale concepts"]
+     [:p "What do you want to see?"]
+     [:button {:on-click #(swap! state assoc :view :mos)} "Moments of symmetry calculator"]
+     [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]]))
+(js/console.log (@state :mos/submos-data))
 (defn start []
   (dom/render [app]
               (. js/document (getElementById "app"))))
@@ -74,5 +167,3 @@
   (start))
 
 (defn stop [])
-
-(println @state)
