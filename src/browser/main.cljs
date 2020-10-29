@@ -117,7 +117,7 @@
   [:div {:key i :style {:margin-bottom  10}}
    [:div
     [:div [:b {:style {:margin-bottom  0}}
-           (str (count pattern) ")" period)]]
+           [:sup generator] (str (count pattern) ")") [:sup "e"] period]]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
      "Generator: " generator ", "]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
