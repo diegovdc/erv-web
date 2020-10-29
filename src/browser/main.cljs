@@ -129,7 +129,7 @@
 
   (let [ pattern (@state :mos/selected-mos)
         submos (filter :true-submos? (state-map :mos/submos-data))
-        neighboring-submos (filter :true-submos? (state-map :mos/submos-data))
+        neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
         nothing-to-see (fn [] [:small "nil"])]
     [:div
      [:h4 {:style {:margin-bottom 0}}
