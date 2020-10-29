@@ -75,18 +75,15 @@
                        (int (state-map :mos/generator)))))
 
 (defn calculate-sub-mos [i state-map]
-  (println "submos" (state-map :mos/mos))
   (let [selected-mos (nth (state-map :mos/mos) i)]
-    (println "selected sub" (state-map :mos/mos))
     (swap! state assoc
            :mos/selected-mos selected-mos
            :mos/submos-data (submos/make-all-submos selected-mos
-                                                    (state-map :mos/generator)
+                                                    (int (state-map :mos/generator))
                                                     (state-map :mos/mos)))))
 
 (defn render-mos-table [mos]
   (let [unit (->> mos first (apply +) (/ 500) Math/round)]
-    (println "table" mos)
     (map-indexed
      (fn [i intervals]
        [:table {:key i}
@@ -159,12 +156,12 @@
      [:input {:style {:display "block"}
               :placeholder "12"
               :value (@state :mos/period)
-              :on-change #(swap! state assoc :mos/period (-> % .-target .-value))}]]
+              :on-change #(swap! state assoc :mos/period (-> % .-target .-value js/Number))}]]
     [:label [:span "Generator"]
      [:input {:style {:display "block"}
               :placeholder "4"
               :value (@state :mos/generator)
-              :on-change #(swap! state assoc :mos/generator (-> % .-target .-value))}]]
+              :on-change #(swap! state assoc :mos/generator (-> % .-target .-value js/Number))}]]
     [:button {:style {:margin-top 5}
               :on-click #(calculate-mos @state)} "Calculate"]]
    (when (@state :mos/mos)
