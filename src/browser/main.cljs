@@ -123,8 +123,6 @@
    (map-indexed (fn [i sm] [:div [:code {:key i} (str/join ", " sm)]]) submos)])
 
 (defn render-submos-data [state-map]
-  (println (group-by :true-submos? (state-map :mos/submos-data)))
-
   (let [ pattern (@state :mos/selected-mos)
         submos (filter :true-submos? (state-map :mos/submos-data))
         neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
