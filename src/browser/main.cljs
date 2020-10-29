@@ -80,8 +80,9 @@
     (println "selected sub" (state-map :mos/mos))
     (swap! state assoc
            :mos/selected-mos selected-mos
-           :mos/submos-data (-> selected-mos
-                                (submos/make-all-submos (state-map :mos/mos))))))
+           :mos/submos-data (submos/make-all-submos selected-mos
+                                                    (state-map :mos/generator)
+                                                    (state-map :mos/mos)))))
 
 (defn render-mos-table [mos]
   (let [unit (->> mos first (apply +) (/ 500) Math/round)]
