@@ -117,7 +117,7 @@
   [:div {:key i :style {:margin-bottom  10}}
    [:div
     [:div [:b {:style {:margin-bottom  0}}
-           [:sup generator] (str (count pattern) ")") [:sup "e"] period]]
+           [:sup generator] (str (count pattern) ")") period]]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
      "Generator: " generator ", "]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
@@ -133,7 +133,7 @@
         nothing-to-see (fn [] [:small "nil"])]
     [:div
      [:h4 {:style {:margin-bottom 0}}
-      (str "Viewing data for: " (count pattern) ")" (apply + pattern))]
+      (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
      [:small {:style {:margin-top 0}}
       "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
      [:div {:style {:margin-bottom 20}}
