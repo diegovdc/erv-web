@@ -77,45 +77,74 @@
 (defn calculate-sub-mos [i state-map]
   (println "submos" (state-map :mos/mos))
   (let [selected-mos (nth (state-map :mos/mos) i)]
-  (println "selected sub" (state-map :mos/mos))
+    (println "selected sub" (state-map :mos/mos))
     (swap! state assoc
            :mos/selected-mos selected-mos
            :mos/submos-data (-> selected-mos
                                 (submos/make-all-submos (state-map :mos/mos))))))
 
 (defn render-mos-table [mos]
-  (let [size (->> mos first (apply +))]
+  (let [unit (->> mos first (apply +) (/ 500) Math/round)]
     (println "table" mos)
-    (map-indexed (fn [i intervals]
-                   [:table {:key i}
-                    [:thead [:tr [:td] [:td]]]
-                    [:tbody
-                     [:tr
-                      [:td {:style {:background-color "#eee"}}
-                       (map-indexed (fn [i interval]
-                                      [:span {:key i
-                                              :style {:display "inline-block"
-                                                      :width (* 500 (/ interval size))
-                                                      :border-left "1px solid black"
-                                                      :border-bottom "1px solid black"}}
-                                       interval])
-                                    intervals)]
-                      [:td {:style {:display "inline-block"}}
-                       (count intervals) [:button {:on-click #(calculate-sub-mos i @state)} "Generate Secondary MOS"]]]]])
-                 mos)))
+    (map-indexed
+     (fn [i intervals]
+       [:table {:key i}
+        [:thead [:tr [:td] [:td]]]
+        [:tbody
+         [:tr
+          [:td {:style {:background-color "#eee"}}
+           (map-indexed
+            (fn [i interval]
+              [:span {:key i
+                      :style {:display "inline-block"
+                              :width (* unit interval)
+                              :border-bottom "1px solid black"}}
+               [:span {:style {:border-left "1px solid black"
+                               :padding-left 3}}
+                interval]])
+            intervals)]
+          [:td [:span {:style {:display "inline-block"
+                               :text-align "center"
+                               :width 20}}
+                (count intervals)]
+           [:button {:style {:margin-left 2}
+                     :on-click #(calculate-sub-mos i @state)}
+            "Generate Secondary MOS"]]]]])
+     mos)))
+
+(defn render-submos-data*
+  [i {:keys [pattern generator submos period]}]
+  [:div {:key i :style {:margin-bottom  10}}
+   [:div
+    [:div [:b {:style {:margin-bottom  0}}
+           (str (count pattern) ")" period)]]
+    [:small {:style {:margin-top  0 :margin-bottom  0}}
+     "Generator: " generator ", "]
+    [:small {:style {:margin-top  0 :margin-bottom  0}}
+     "MOS: [" (str/join ", " pattern) "]"]]
+   (map-indexed (fn [i sm] [:div [:code {:key i} (str/join ", " sm)]]) submos)])
 
 (defn render-submos-data [state-map]
-  (println (state-map :mos/submos-data))
-  (conj [:div
-         (let [ pattern (@state :mos/selected-mos)]
-           [:h4 "Viewing data for row: " (count pattern) ", pattern: " (str/join ", " pattern) ])]
-        (map-indexed (fn [i {:keys [pattern generator submos]}]
-                       [:div {:key i}
-                        [:h5 {:style {:margin-bottom "3px"}}
-                         "Based on pattern: [" (str/join ", " pattern) "], "
-                         "generator: " generator]
-                        (map-indexed (fn [i sm] [:div {:key i} (str/join ", " sm)]) submos)])
-                     (state-map :mos/submos-data))))
+  (println (group-by :true-submos? (state-map :mos/submos-data)))
+
+  (let [ pattern (@state :mos/selected-mos)
+        submos (filter :true-submos? (state-map :mos/submos-data))
+        neighboring-submos (filter :true-submos? (state-map :mos/submos-data))
+        nothing-to-see (fn [] [:small "nil"])]
+    [:div
+     [:h4 {:style {:margin-bottom 0}}
+      (str "Viewing data for: " (count pattern) ")" (apply + pattern))]
+     [:small {:style {:margin-top 0}}
+      "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
+     [:div {:style {:margin-bottom 20}}
+      [:h3 {:style {:margin-bottom 0}} "Secondary MOS"]
+      (if (seq submos)
+        (map-indexed render-submos-data* submos)
+        (nothing-to-see))]
+     [:h3 {:style {:margin-bottom 0}} "Neighboring MOS"]
+     (if (seq neighboring-submos)
+       (map-indexed render-submos-data* neighboring-submos)
+       (nothing-to-see))]))
 (comment
   (@state :mos/submos-data)
   (@state :mos/selected-mos)
@@ -124,17 +153,19 @@
 (defn mos []
   [:div
    [:h1 "Moments of symmetry"]
-   [:label [:span "Period" [:small " (determines the number of degrees in the scale)"]]
-    [:input {:style {:display "block"}
-             :placeholder "12"
-             :value (@state :mos/period)
-             :on-change #(swap! state assoc :mos/period (-> % .-target .-value))}]]
-   [:label [:span "Generator" [:small "An integer number"]]
-    [:input {:style {:display "block"}
-             :placeholder "4"
-             :value (@state :mos/generator)
-             :on-change #(swap! state assoc :mos/generator (-> % .-target .-value))}]]
-   [:button {:on-click #(calculate-mos @state)} "Calculate"]
+   [:div {:style {:margin-bottom 10}}
+    [:label [:span "Period" [:small " (determines the number of degrees in the scale)"]]
+     [:input {:style {:display "block"}
+              :placeholder "12"
+              :value (@state :mos/period)
+              :on-change #(swap! state assoc :mos/period (-> % .-target .-value))}]]
+    [:label [:span "Generator"]
+     [:input {:style {:display "block"}
+              :placeholder "4"
+              :value (@state :mos/generator)
+              :on-change #(swap! state assoc :mos/generator (-> % .-target .-value))}]]
+    [:button {:style {:margin-top 5}
+              :on-click #(calculate-mos @state)} "Calculate"]]
    (when (@state :mos/mos)
      (render-mos-table (@state :mos/mos)))
    (when (@state :mos/submos-data)
