@@ -120,7 +120,12 @@
      "Generator: " generator ", "]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
      "MOS: [" (str/join ", " pattern) "]"]]
-   (map-indexed (fn [i sm] [:div [:code {:key i} (str/join ", " sm)]]) submos)])
+   (map-indexed (fn [i {:keys [mos degree]}]
+                  [:div
+                   [:code {:key i}
+                    (str (str/join ", " mos)
+                         " @ degree: " degree)]])
+                submos)])
 
 (defn render-submos-data [state-map]
   (let [ pattern (@state :mos/selected-mos)
