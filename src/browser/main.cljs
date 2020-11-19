@@ -1,20 +1,16 @@
 (ns browser.main
-  (:require [clojure.spec.alpha :as s]
+  (:require [clojure.edn :as edn]
+            [clojure.spec.alpha :as s]
             [clojure.string :as str]
             [erv.cps.core :as cps]
-            [clojure.edn :as edn]
             [erv.mos.mos :as mos]
             [erv.mos.submos :as submos]
             [erv.scale.core :as scale]
             [erv.utils.conversions :refer [cps->midi]]
             [erv.utils.core :as utils]
+            [goog.string :refer [format]]
             [reagent.core :as r]
             [reagent.dom :as dom]))
-
-                                        ; The output will be loadable through the `<script>` tag in any
-                                        ; webpage, making it ideal for client-side code (e.g. React).
-                                        ;
-                                        ; More details at https://shadow-cljs.github.io/docs/UsersGuide.html#target-browser
 
 (defonce state (r/atom {:view :nil
                         :generators "1,3,5,7"
@@ -111,7 +107,7 @@
      mos)))
 
 (defn render-submos-data*
-  [i {:keys [pattern generator submos period]}]
+  [state-map i {:keys [pattern generator submos submos-by-mos period]}]
   [:div {:key i :style {:margin-bottom  10}}
    [:div
     [:div [:b {:style {:margin-bottom  0}}
@@ -120,12 +116,28 @@
      "Generator: " generator ", "]
     [:small {:style {:margin-top  0 :margin-bottom  0}}
      "MOS: [" (str/join ", " pattern) "]"]]
-   (map-indexed (fn [i {:keys [mos degree]}]
-                  [:div
-                   [:code {:key i}
-                    (str (str/join ", " mos)
-                         " @ degree: " degree)]])
-                submos)])
+   (case (state-map :mos/submos-representation-mode)
+     :all-modes (map-indexed
+                 (fn [i {:keys [mos degree mos-degrees]}]
+                   [:div {:key i}
+                    [:code
+                     (format "mode %s: [%s], degrees: [%s]"
+                             degree
+                             (str/join ", " mos)
+                             (str/join ", " mos-degrees))]])
+                 submos)
+     :unique-mos (map (fn [[mos group]]
+                        (let [zero-rotation
+                              (->> group
+                                   (filter #(-> % :rotation :at-zero?))
+                                   first)]
+                          [:div {:key mos}
+                           [:code (when-not zero-rotation {:style {:color "red"}})
+                            (format "[%s]"
+                                    (str/join "," (or (:mos zero-rotation) mos)))
+                            (when-not zero-rotation [:small " this secondary MOS has no rotation to the first degree"])]]))
+                      submos-by-mos)
+     nil)])
 
 (defn render-submos-data [state-map]
   (let [ pattern (@state :mos/selected-mos)
@@ -137,14 +149,25 @@
       (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
      [:small {:style {:margin-top 0}}
       "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
+     [:div
+      [:button {:on-click #(swap! state assoc
+                                  :mos/submos-representation-mode :all-modes)
+                :style (when (= :all-modes (state-map :mos/submos-representation-mode))
+                         {:background-color "#ffc107"}) }
+       "Show modes"]
+      [:button {:on-click #(swap! state assoc
+                                  :mos/submos-representation-mode :unique-mos)
+                :style (when (= :unique-mos (state-map :mos/submos-representation-mode))
+                         {:background-color "#ffc107"})}
+       "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
      [:div {:style {:margin-bottom 20}}
       [:h3 {:style {:margin-bottom 0}} "Secondary MOS"]
       (if (seq submos)
-        (map-indexed render-submos-data* submos)
+        (map-indexed (partial render-submos-data* @state) submos)
         (nothing-to-see))]
      [:h3 {:style {:margin-bottom 0}} "Neighboring MOS"]
      (if (seq neighboring-submos)
-       (map-indexed render-submos-data* neighboring-submos)
+       (map-indexed (partial render-submos-data* @state) neighboring-submos)
        (nothing-to-see))]))
 (comment
   (@state :mos/submos-data)
