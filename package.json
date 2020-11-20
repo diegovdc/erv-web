@@ -11,7 +11,7 @@
     "release:browser": "shadow-cljs release browser",
     "watch:browser": "shadow-cljs watch browser",
     "start:browser": "serve -s build/browser",
-    "prepublishOnly": "npm run release:browser && cp build/browser/browser-main.js umd/wislon-tunings-web.js"
+    "prepublishOnly": "npm run release:browser && cp build/browser/browser-main.js umd/wilson-tunings-web.js"
   },
   "files": ["umd"],
   "keywords": [],
