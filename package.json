@@ -1,6 +1,6 @@
 {
   "name": "wilson-tunings-web",
-  "version": "1.1.0",
+  "version": "1.0.1",
   "description": "This is the web interface for the [Erv library](https://github.com/diegovdc/erv) which allows for calculations and other algorithmic treatments of some of [Erv Wilsons'](http://anaphoria.com/wilson.html) music scale theories.",
   "scripts": {
     "release": "run-s release:*",
@@ -13,9 +13,7 @@
     "start:browser": "serve -s build/browser",
     "prepublishOnly": "npm run release:browser && cp build/browser/browser-main.js umd/wilson-tunings-web.js"
   },
-  "files": [
-    "umd"
-  ],
+  "files": ["umd"],
   "keywords": [],
   "devDependencies": {
     "npm-run-all": "^4.1.5",
