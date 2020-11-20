@@ -4,3 +4,4 @@ target/
 .shadow-cljs/
 .nrepl-port
 .cpcache/
+umd/
