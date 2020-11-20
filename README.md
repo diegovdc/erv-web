@@ -5,12 +5,19 @@ This is the web interface for the [Erv library](https://github.com/diegovdc/erv)
 ### Installation via `script` tag
 
 ```html
-<script type="text/javascript" src="browser-main.js"></script>
+<!-- The example uses v 1.0.0 as seen in this part `wilson-tunings-web@1.0.0`
+     Please check package.json file for current version -->
+<script
+  type="text/javascript"
+  src="https://unpkg.com/wilson-tunings-web@1.0.0/umd/wilson-tunings-web.js"
+></script>
 <script>
   // Currently `view` can be "mos", "cps" or null;
   wilson_tunings.main.init({ view: "mos" });
 </script>
 ```
+
+Basic styles can be found in the [index.html](https://github.com/diegovdc/erv-web/blob/main/src/_build_hooks/index.html) file.
 
 ### Development
 
