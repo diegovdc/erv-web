@@ -55,10 +55,11 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="calculator"></div>
     <script type="text/javascript" src="browser-main.js"></script>
     <script>
-      wilson_tunings.main.init({ view: "mos" });
+      // `view` may be "cps", "mos" and null
+      wilson_tunings.main.init({ elementId: "calculator", view: null });
     </script>
   </body>
 </html>

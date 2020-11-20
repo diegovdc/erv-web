@@ -2,18 +2,24 @@
 
 This is the web interface for the [Erv library](https://github.com/diegovdc/erv) which allows for calculations and other algorithmic treatments of some of [Erv Wilsons'](http://anaphoria.com/wilson.html) music scale theories.
 
-### Installation via `script` tag
+### Embedding via `script` tag
 
 ```html
-<!-- The example uses v 1.0.0 as seen in this part `wilson-tunings-web@1.0.0`
-     Please check package.json file for current version -->
+<!-- The html element where the calcuator will be embeded -->
+<div id="wilson-tunings-calculator"></div>
+
+<!-- The example uses v 1.0.1 as seen in this part `wilson-tunings-web@1.0.1`
+     Please check https://unpkg.com/browse/wilson-tunings-web/ for other versions  -->
 <script
   type="text/javascript"
-  src="https://unpkg.com/wilson-tunings-web@1.0.0/umd/wilson-tunings-web.js"
+  src="https://unpkg.com/wilson-tunings-web@1.0.1/umd/wilson-tunings-web.js"
 ></script>
 <script>
   // Currently `view` can be "mos", "cps" or null;
-  wilson_tunings.main.init({ view: "mos" });
+  wilson_tunings.main.init({
+    elementId: "wilson-tunings-calculator",
+    view: null,
+  });
 </script>
 ```
 

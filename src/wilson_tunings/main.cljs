@@ -21,8 +21,8 @@
      [:button {:on-click #(swap! state assoc :view :mos)} "Moments of symmetry calculator"]
      [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]]))
 
-(defn start []
-  (dom/render [app] (. js/document (getElementById "app"))))
+(defn start [element-id]
+  (dom/render [app] (. js/document (getElementById element-id))))
 
 (defn stop []
   (println "Restarting"))
@@ -33,4 +33,5 @@
 (defn ^:export init [opts]
   (if-let [view (-> opts js->clj (get "view") keyword)]
     (swap! state assoc :view view))
-  (start))
+  (let [element-id (-> opts js->clj (get "elementId" "app"))]
+    (start element-id)))
