@@ -16,8 +16,7 @@
   :browser {:target :browser
             :output-dir "build/browser"
             :asset-path "."
-            :modules {:browser-main {:entries [browser.main]
-                                     :init-fn browser.main/init}}
+            :modules {:browser-main {:entries [wilson-tunings.main]}}
             :build-hooks [(_build_hooks.browser/copy-index)]
-            :devtools {:before-load browser.main/stop
-                       :after-load browser.main/start}}}}
+            :devtools {:before-load wilson-tunings.main/stop
+                       :after-load wilson-tunings.main/start}}}}
