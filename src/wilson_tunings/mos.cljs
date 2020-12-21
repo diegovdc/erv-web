@@ -47,6 +47,16 @@
             "Generate Secondary MOS"]]]]])
      mos)))
 
+(defn order-submos-using-generator-strategy
+  "Attemps to order the submos modes with the generator
+   by using the `mos/get-mos-points` function"
+  [generator submos]
+  (let [submos-size (count submos)
+        indexes (drop-last 1 (mos/get-mos-points submos-size  generator))
+        res (map #(nth submos %) indexes)]
+    (if (= (count res) submos-size) res submos)))
+
+
 (defn render-submos-data*
   [state-map i {:keys [pattern generator submos submos-by-mos period]}]
   [:div {:key i :class "wt__mos-secondary-data-detail"}
@@ -58,15 +68,16 @@
     [:small {:class "wt__mos-secondary-data-detail-explanation"}
      "MOS: [" (str/join ", " pattern) "]"]]
    (case (state-map :mos/submos-representation-mode)
-     :all-modes (map-indexed
-                 (fn [i {:keys [mos degree mos-degrees]}]
-                   [:div {:key i :class "wt__mos-secondary-data-main-data"}
-                    [:code
-                     (format "mode %s: [%s], degrees: [%s]"
-                             degree
-                             (str/join ", " mos)
-                             (str/join ", " mos-degrees))]])
-                 submos)
+     :all-modes (->> submos
+                     (order-submos-using-generator-strategy generator)
+                     (map-indexed
+                      (fn [i {:keys [mos degree mos-degrees]}]
+                        [:div {:key i :class "wt__mos-secondary-data-main-data"}
+                         [:code
+                          (format "mode %s: [%s], degrees: [%s]"
+                                  degree
+                                  (str/join ", " mos)
+                                  (str/join ", " mos-degrees))]])))
      :unique-mos (map (fn [[mos group]]
                         (let [zero-rotation
                               (->> group
@@ -82,40 +93,40 @@
                             (when-not zero-rotation
                               [:small " this secondary MOS has no rotation to the first degree"])]]))
                       submos-by-mos)
-     nil)])
+     nil)
 
-(defn render-submos-data [state state-map]
-  (let [ pattern (@state :mos/selected-mos)
-        submos (filter :true-submos? (state-map :mos/submos-data))
-        neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
-        nothing-to-see (fn [] [:small "nil"])]
-    [:div {:class "wt__mos-secondary-data"}
-     [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
-     [:small {:class "wt__mos-secondary-data-mos-description" }
-      "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
-     [:div [:button {:class (str "wt__mos-secondary-data-button "
-                                 (when (= :all-modes (state-map :mos/submos-representation-mode))
-                                   "selected"))
-                     :on-click #(swap! state assoc
-                                       :mos/submos-representation-mode :all-modes)
-                     :style (when (= :all-modes (state-map :mos/submos-representation-mode))
-                              {:background-color "#ffc107"}) }
-            "Show modes"]
-      [:button {:class (str "wt__mos-secondary-data-button "
-                            (when (= :unique-mos (state-map :mos/submos-representation-mode))
-                              "selected"))
-                :on-click #(swap! state assoc
-                                  :mos/submos-representation-mode :unique-mos)}
-       "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
-     [:div {:class "wt__mos-secondary-data-main"}
-      [:h3 "Secondary MOS"]
-      (if (seq submos)
-        (map-indexed (partial render-submos-data* @state) submos)
-        (nothing-to-see))
-      [:h3 "Traverse MOS"]
-      (if (seq neighboring-submos)
-        (map-indexed (partial render-submos-data* @state) neighboring-submos)
-        (nothing-to-see))]]))
+   (defn render-submos-data [state state-map]
+     (let [ pattern (@state :mos/selected-mos)
+           submos (filter :true-submos? (state-map :mos/submos-data))
+           neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
+           nothing-to-see (fn [] [:small "nil"])]
+       [:div {:class "wt__mos-secondary-data"}
+        [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
+        [:small {:class "wt__mos-secondary-data-mos-description" }
+         "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
+        [:div [:button {:class (str "wt__mos-secondary-data-button "
+                                    (when (= :all-modes (state-map :mos/submos-representation-mode))
+                                      "selected"))
+                        :on-click #(swap! state assoc
+                                          :mos/submos-representation-mode :all-modes)
+                        :style (when (= :all-modes (state-map :mos/submos-representation-mode))
+                                 {:background-color "#ffc107"}) }
+               "Show modes"]
+         [:button {:class (str "wt__mos-secondary-data-button "
+                               (when (= :unique-mos (state-map :mos/submos-representation-mode))
+                                 "selected"))
+                   :on-click #(swap! state assoc
+                                     :mos/submos-representation-mode :unique-mos)}
+          "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
+        [:div {:class "wt__mos-secondary-data-main"}
+         [:h3 "Secondary MOS"]
+         (if (seq submos)
+           (map-indexed (partial render-submos-data* @state) submos)
+           (nothing-to-see))
+         [:h3 "Traverse MOS"]
+         (if (seq neighboring-submos)
+           (map-indexed (partial render-submos-data* @state) neighboring-submos)
+           (nothing-to-see))]]))])
 
 (defn main [state]
   [:div
