@@ -93,40 +93,40 @@
                             (when-not zero-rotation
                               [:small " this secondary MOS has no rotation to the first degree"])]]))
                       submos-by-mos)
-     nil)
+     nil)])
 
-   (defn render-submos-data [state state-map]
-     (let [ pattern (@state :mos/selected-mos)
-           submos (filter :true-submos? (state-map :mos/submos-data))
-           neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
-           nothing-to-see (fn [] [:small "nil"])]
-       [:div {:class "wt__mos-secondary-data"}
-        [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
-        [:small {:class "wt__mos-secondary-data-mos-description" }
-         "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
-        [:div [:button {:class (str "wt__mos-secondary-data-button "
-                                    (when (= :all-modes (state-map :mos/submos-representation-mode))
-                                      "selected"))
-                        :on-click #(swap! state assoc
-                                          :mos/submos-representation-mode :all-modes)
-                        :style (when (= :all-modes (state-map :mos/submos-representation-mode))
-                                 {:background-color "#ffc107"}) }
-               "Show modes"]
-         [:button {:class (str "wt__mos-secondary-data-button "
-                               (when (= :unique-mos (state-map :mos/submos-representation-mode))
-                                 "selected"))
-                   :on-click #(swap! state assoc
-                                     :mos/submos-representation-mode :unique-mos)}
-          "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
-        [:div {:class "wt__mos-secondary-data-main"}
-         [:h3 "Secondary MOS"]
-         (if (seq submos)
-           (map-indexed (partial render-submos-data* @state) submos)
-           (nothing-to-see))
-         [:h3 "Traverse MOS"]
-         (if (seq neighboring-submos)
-           (map-indexed (partial render-submos-data* @state) neighboring-submos)
-           (nothing-to-see))]]))])
+(defn render-submos-data [state state-map]
+  (let [ pattern (@state :mos/selected-mos)
+        submos (filter :true-submos? (state-map :mos/submos-data))
+        neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
+        nothing-to-see (fn [] [:small "nil"])]
+    [:div {:class "wt__mos-secondary-data"}
+     [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
+     [:small {:class "wt__mos-secondary-data-mos-description" }
+      "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
+     [:div [:button {:class (str "wt__mos-secondary-data-button "
+                                 (when (= :all-modes (state-map :mos/submos-representation-mode))
+                                   "selected"))
+                     :on-click #(swap! state assoc
+                                       :mos/submos-representation-mode :all-modes)
+                     :style (when (= :all-modes (state-map :mos/submos-representation-mode))
+                              {:background-color "#ffc107"}) }
+            "Show modes"]
+      [:button {:class (str "wt__mos-secondary-data-button "
+                            (when (= :unique-mos (state-map :mos/submos-representation-mode))
+                              "selected"))
+                :on-click #(swap! state assoc
+                                  :mos/submos-representation-mode :unique-mos)}
+       "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
+     [:div {:class "wt__mos-secondary-data-main"}
+      [:h3 "Secondary MOS"]
+      (if (seq submos)
+        (map-indexed (partial render-submos-data* @state) submos)
+        (nothing-to-see))
+      [:h3 "Traverse MOS"]
+      (if (seq neighboring-submos)
+        (map-indexed (partial render-submos-data* @state) neighboring-submos)
+        (nothing-to-see))]]))
 
 (defn main [state]
   [:div
