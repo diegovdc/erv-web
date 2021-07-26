@@ -4,7 +4,8 @@
             [erv.scale.core :as scale]
             [erv.scale.scl :as scl]
             [erv.utils.conversions :refer [cps->midi]]
-            [erv.utils.core :as utils]))
+            [erv.utils.core :as utils]
+            [erv.utils.conversions :as conv]))
 
 (defn parse-generators [generators]
   (-> generators (str/split #",")
@@ -16,16 +17,18 @@
 
 (defn make-tidal-scale [set-size generators period]
   (let [gens (parse-generators generators)
-        scale (->> (cps/make set-size gens :period period :norm-gen (last gens)) :scale)
-        freqs (map #(cps->midi (scale/deg->freq scale 10 %)) (range (count scale)))]
+        scale (->> (cps/make (int set-size) gens :period period :norm-gen
+                             (->> gens (take-last (int set-size)) (apply *)))
+                   :scale)
+        freqs (map (comp conv/ratio->cents :bounded-ratio) scale)]
     (str "[" (->> (map #(utils/round2 2 (- % (first freqs))) freqs)
                   (str/join ","))
          "]")))
-(
-defn make-scala-file [set-size generators period]
+(:scale (cps/make 3 [1 3 5 7]))
+(defn make-scala-file [set-size generators period]
   (let [gens (parse-generators generators)
-        scale-data (cps/make set-size gens :period period
-                             :norm-gen (last gens))]
+        scale-data (cps/make (int set-size) gens :period period
+                             :norm-gen (->> gens (take-last (int set-size)) (apply *)))]
     (scl/make-scl-file scale-data)))
 
 (defn main [state]
