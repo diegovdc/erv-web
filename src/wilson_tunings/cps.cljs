@@ -29,6 +29,9 @@
     (scl/make-scl-file scale-data)))
 
 #_(make-scala-file [1 3 5 7] 2)
+(defn parse-period [period]
+  (if (number? period) (js/Number period) 0))
+
 (defn main [state]
   [:div
    [:h1 "Combination Product Sets Maker"]
@@ -45,12 +48,15 @@
     [:label [:span "Set size" [:small " (determines the number of degrees in the scale)"]]
      [:input {:style {:display "block"}
               :placeholder "2"
+              :type "number"
               :value (@state :set-size)
               :on-change #(swap! state assoc :set-size (-> % .-target .-value))}]]
     [:label [:span "Period" [:small " (harmonic at which the scale repeats - use 2 for octave"]]
      [:input {:style {:display "block"}
               :placeholder "2"
-              :value (@state :period 2)
+              :type "number"
+              :value (@state :period)
+              :min "1"
               :on-change #(swap! state assoc :period (-> % .-target .-value js/Number))}]]]
    [:h2 "Scale:"]
    (let [{:keys [generators set-size period]} @state]
