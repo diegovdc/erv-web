@@ -1,6 +1,6 @@
 {
   "name": "wilson-tunings-web",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "This is the web interface for the [Erv library](https://github.com/diegovdc/erv) which allows for calculations and other algorithmic treatments of some of [Erv Wilsons'](http://anaphoria.com/wilson.html) music scale theories.",
   "scripts": {
     "release": "run-s release:*",
