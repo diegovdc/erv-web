@@ -2,6 +2,7 @@
   (:require [clojure.string :as str]
             [erv.cps.core :as cps]
             [erv.scale.core :as scale]
+            [erv.scale.scl :as scl]
             [erv.utils.conversions :refer [cps->midi]]
             [erv.utils.core :as utils]))
 
@@ -10,21 +11,24 @@
       (->> (map (comp js/Number str/trim))
            (remove #(or (= % nil?)
                         (= % 0)
-                        (js/Number.isNaN %))))))
+                        (js/Number.isNaN %)))
+           sort)))
 
-(defn make-tidal-scale [generators set-size]
+(defn make-tidal-scale [set-size generators period]
   (let [gens (parse-generators generators)
-        scale (->> gens
-                   (cps/->cps (js/Number set-size))
-                   cps/set->maps
-                   (cps/bound-ratio 2)
-                   (cps/maps->data :bounded-ratio)
-                   :scale)
+        scale (->> (cps/make set-size gens :period period :norm-gen (last gens)) :scale)
         freqs (map #(cps->midi (scale/deg->freq scale 10 %)) (range (count scale)))]
     (str "[" (->> (map #(utils/round2 2 (- % (first freqs))) freqs)
                   (str/join ","))
          "]")))
 
+(defn make-scala-file [set-size generators period]
+  (println "======" period)
+  (let [gens (parse-generators generators)
+        scale-data (cps/make set-size gens :period period :norm-gen (last gens))]
+    (scl/make-scl-file scale-data)))
+
+#_(make-scala-file [1 3 5 7] 2)
 (defn main [state]
   [:div
    [:h1 "Combination Product Sets Maker"]
@@ -42,10 +46,24 @@
      [:input {:style {:display "block"}
               :placeholder "2"
               :value (@state :set-size)
-              :on-change #(swap! state assoc :set-size (-> % .-target .-value))}]]]
-   [:h2 "Output scale (in midi, for an octave):"]
-   (let [{:keys [generators set-size]} @state]
+              :on-change #(swap! state assoc :set-size (-> % .-target .-value))}]]
+    [:label [:span "Period" [:small " (harmonic at which the scale repeats - use 2 for octave"]]
+     [:input {:style {:display "block"}
+              :placeholder "2"
+              :value (@state :period 2)
+              :on-change #(swap! state assoc :period (-> % .-target .-value js/Number))}]]]
+   [:h2 "Scale:"]
+   (let [{:keys [generators set-size period]} @state]
      (if (and (> (count generators) 0)
-              (> (count set-size) 0))
-       [:code {:style {:background-color "lightgray"}} (make-tidal-scale generators set-size)]
+              (> (count set-size) 0)
+              (> period 1))
+       (let [{:keys [content filename]} (make-scala-file set-size generators period)]
+         [:div
+          [:div [:h3 "MIDI tuning (for use with SuperCollider or Tidal Cycles)"]
+           [:pre {:style {:background-color "lightgray"}} (make-tidal-scale set-size generators period) ]]
+          [:div
+           [:h3 "Scala file"]
+           [:a {:href (str "data:text/plain;charset=utf-8," content)
+                :download filename} (str "Download: " filename)]
+           [:pre {:style {:background-color "lightgray"}} content]]])
        [:small "Incomplete input"]))])

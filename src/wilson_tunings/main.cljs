@@ -7,6 +7,7 @@
 (defonce state (r/atom {:view :nil
                         :generators "1,3,5,7"
                         :set-size "2"
+                        :period 2
                         :mos/submos-representation-mode :unique-mos
                         :mos/period 12
                         :mos/generator 5}))
