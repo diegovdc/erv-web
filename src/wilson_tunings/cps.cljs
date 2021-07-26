@@ -16,23 +16,17 @@
 
 (defn make-tidal-scale [set-size generators period]
   (let [gens (parse-generators generators)
-        scale (->> (cps/make set-size gens
-                             :period period
-                             :norm-gen (->> gens
-                                            (take-last (int set-size))
-                                            (apply *)))
-                   :scale)
+        scale (->> (cps/make set-size gens :period period :norm-gen (last gens)) :scale)
         freqs (map #(cps->midi (scale/deg->freq scale 10 %)) (range (count scale)))]
     (str "[" (->> (map #(utils/round2 2 (- % (first freqs))) freqs)
                   (str/join ","))
          "]")))
 (
- defn make-scala-file [set-size generators period]
- (let [gens (parse-generators generators)
-       scale-data (cps/make set-size gens :period period
-                            ;; the normalization generator can be different but Wilsonic does it like this, so...
-                            :norm-gen (->> gens (take-last (int set-size)) (apply *)))]
-   (scl/make-scl-file scale-data)))
+defn make-scala-file [set-size generators period]
+  (let [gens (parse-generators generators)
+        scale-data (cps/make set-size gens :period period
+                             :norm-gen (last gens))]
+    (scl/make-scl-file scale-data)))
 
 (defn main [state]
   [:div
