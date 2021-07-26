@@ -21,16 +21,13 @@
     (str "[" (->> (map #(utils/round2 2 (- % (first freqs))) freqs)
                   (str/join ","))
          "]")))
-
-(defn make-scala-file [set-size generators period]
-  (println "======" period)
+(
+defn make-scala-file [set-size generators period]
   (let [gens (parse-generators generators)
-        scale-data (cps/make set-size gens :period period :norm-gen (last gens))]
+        scale-data (cps/make set-size gens :period period
+                             ;; the normalization generator can be different but Wilsonic does it like this, so...
+                             :norm-gen (->> gens (take-last (int set-size)) (apply *)))]
     (scl/make-scl-file scale-data)))
-
-#_(make-scala-file [1 3 5 7] 2)
-(defn parse-period [period]
-  (if (number? period) (js/Number period) 0))
 
 (defn main [state]
   [:div
