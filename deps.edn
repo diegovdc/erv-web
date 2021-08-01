@@ -1,4 +1,5 @@
 {:paths ["src"]
  :deps {thheller/shadow-cljs {:mvn/version "2.11.4"}
         reagent {:mvn/version "1.0.0-alpha2"}
-        erv {:local/root "/home/diego/sc/overtone/erv"}}}
+        erv/erv {:local/root "/home/diego/sc/overtone/erv"}
+        com.gfredericks/exact {:mvn/version"0.1.11"}}}
