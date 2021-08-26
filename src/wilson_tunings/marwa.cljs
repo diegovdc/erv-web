@@ -14,9 +14,10 @@
   [:div
    [:h2 "Input a MOS scale"]
    [:small "Note: if the scale is not a MOS, you may get unisons in your permutations (intervals of size 0)" ]
-   [:label "Scale: "
-    [:input {:id scale-input-id
-             :placeholder "2,2,1,2,2,2,1"}]
+   [:div
+    [:label "Scale: "
+     [:input {:id scale-input-id
+              :placeholder "2,2,1,2,2,2,1"}]]
     [:button
      {:on-click
       (fn [_]
