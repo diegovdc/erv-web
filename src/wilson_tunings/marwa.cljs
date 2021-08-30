@@ -1,7 +1,10 @@
 (ns wilson-tunings.marwa
   (:require [erv.marwa.core :as marwa]
+            [erv.edo.core :as edo]
+            [erv.scale.core :as scale]
             [clojure.string :as str]))
 
+#_(scale/demo! (:scale (edo/from-pattern [2 2 1 2 2 2 1])))
 #_(marwa/get-possible-interval-sequences)
 
 (defn parse-scale [input-value]
@@ -17,7 +20,8 @@
    [:div
     [:label "Scale: "
      [:input {:id scale-input-id
-              :placeholder "2,2,1,2,2,2,1"}]]
+              :defaultValue "2,2,1,2,2,2,1"
+              :placeholder "scale i.e. 2,2,1,2,2,2,1"}]]
     [:button
      {:on-click
       (fn [_]
@@ -68,6 +72,16 @@
          (mapcat (fn [[gen freq]] (repeat freq gen)))))
   #_(original-generator-sequence {7 1, 6 5}))
 
+(defn demo-button [scale]
+  [:button
+   {:on-click
+    (fn [_]
+      (scale/demo!
+       (:scale (edo/from-pattern scale)))) }
+   "Demo"])
+
+
+
 (defn permutations [state]
   (let [input-scale (@state :marwa/input-scale)
         remove-unisons? (@state :marwa/remove-unisons?)
@@ -106,17 +120,20 @@
           (str scale-rotation)])
        [:table
         [:thead
-         [:tr [:th "Scale"] [:th "Generator List"] [:th]]]
+         [:tr [:th "Scale"] [:th "Generator List"] [:th] [:th]]]
         [:tbody
          (concat
           [[:tr {:key "original"}
             [:td (str scale-rotation)]
             [:td (str original-gen-seq)]
+            [:td (demo-button scale-rotation)]
             [:td (when rotated? "Original scale (rotated)")]]]
           (map (fn [{:keys [scale generator-seq]}]
                  [:tr {:key generator-seq}
                   [:td (str scale)]
-                  [:td (str generator-seq)]])
+                  [:td (str generator-seq)]
+                  [:td (demo-button scale)]
+                  [:td]])
                perms))]]])))
 
 (defn main

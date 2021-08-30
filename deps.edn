@@ -2,4 +2,5 @@
  :deps {thheller/shadow-cljs {:mvn/version "2.11.4"}
         reagent {:mvn/version "1.0.0-alpha2"}
         erv/erv {:local/root "/home/diego/sc/overtone/erv"}
+        time-time/time-time {:local/root "/home/diego/sc/overtone/time-time"}
         com.gfredericks/exact {:mvn/version"0.1.11"}}}
