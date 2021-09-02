@@ -92,6 +92,7 @@
          :as data}
         (@state :marwa/selected-generator-sequence-data {})
 
+        ;; TODO fix this, for generator lists that are not `best-sequence?`
         [gen-interval closing-interval] sorted-generators-by-high-freq
         base-perms (marwa/base-permutations (count sequence)
                                             gen-interval
@@ -112,6 +113,7 @@
        [:h2 "Permutations" [:small " (" (count perms) ")"]]
        [:div [:label "Remove unisons: "
               [:input {:type "checkbox"
+                       :checked (@state :marwa/remove-unisons?)
                        :on-change #(swap! state assoc
                                           :marwa/remove-unisons?
                                           (-> % .-target .-checked))}]]]

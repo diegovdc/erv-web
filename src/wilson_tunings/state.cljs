@@ -10,4 +10,5 @@
                         :mos/submos-representation-mode :unique-mos
                         :mos/period 12
                         :mos/generator 5
-                        :marwa/input-scale [2 2 1 2 2 2 1]}))
+                        :marwa/input-scale [2 2 1 2 2 2 1]
+                        :marwa/remove-unisons? true}))
