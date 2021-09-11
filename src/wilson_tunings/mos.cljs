@@ -121,11 +121,12 @@
      [:div {:class "wt__mos-secondary-data-main"}
       [:h3 "Secondary MOS"]
       (if (seq submos)
-        (map-indexed (partial render-submos-data* @state) submos)
+        (reverse (map-indexed (partial render-submos-data* @state) submos))
         (nothing-to-see))
       [:h3 "Traverse MOS"]
+      [:div [:small "A Transverse MOS is a MOS cycle that shares the same period but uses a different generator."]]
       (if (seq neighboring-submos)
-        (map-indexed (partial render-submos-data* @state) neighboring-submos)
+        (reverse (map-indexed (partial render-submos-data* @state) neighboring-submos))
         (nothing-to-see))]]))
 
 (defn main [state]
