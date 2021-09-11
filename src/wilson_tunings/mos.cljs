@@ -101,7 +101,7 @@
     (filter #(not= 1 (:generator %))
             (state-map :mos/submos-data))
     (state-map :mos/submos-data)))
-(println (filter #(not= 1 (:generator %)) nil))
+
 (defn render-submos-data [state state-map]
   (let [pattern (@state :mos/selected-mos)
         submos-data (get-submos-data state-map)
@@ -166,5 +166,5 @@
               :on-click #(calculate-mos state)} "Calculate"]]
    (when (@state :mos/mos)
      (render-mos-table state (@state :mos/mos)))
-   (when (get-submos-data @state)
+   (when (@state :mos/selected-mos)
      (render-submos-data state @state))])
