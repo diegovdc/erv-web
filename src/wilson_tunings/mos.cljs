@@ -95,29 +95,44 @@
                       submos-by-mos)
      nil)])
 
+(defn get-submos-data [state-map]
+  #_(state-map :mos/submos-data)
+  (if (state-map :mos/remove-generator-1)
+    (filter #(not= 1 (:generator %))
+            (state-map :mos/submos-data))
+    (state-map :mos/submos-data)))
+(println (filter #(not= 1 (:generator %)) nil))
 (defn render-submos-data [state state-map]
-  (let [ pattern (@state :mos/selected-mos)
-        submos (filter :true-submos? (state-map :mos/submos-data))
-        neighboring-submos (remove :true-submos? (state-map :mos/submos-data))
+  (let [pattern (@state :mos/selected-mos)
+        submos-data (get-submos-data state-map)
+        submos (filter :true-submos? submos-data)
+        neighboring-submos (remove :true-submos? submos-data)
         nothing-to-see (fn [] [:small "nil"])]
     [:div {:class "wt__mos-secondary-data"}
      [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
      [:small {:class "wt__mos-secondary-data-mos-description" }
       "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
-     [:div [:button {:class (str "wt__mos-secondary-data-button "
-                                 (when (= :all-modes (state-map :mos/submos-representation-mode))
-                                   "selected"))
-                     :on-click #(swap! state assoc
-                                       :mos/submos-representation-mode :all-modes)
-                     :style (when (= :all-modes (state-map :mos/submos-representation-mode))
-                              {:background-color "#ffc107"}) }
-            "Show modes"]
+     [:div
+      [:button {:class (str "wt__mos-secondary-data-button "
+                            (when (= :all-modes (state-map :mos/submos-representation-mode))
+                              "selected"))
+                :on-click #(swap! state assoc
+                                  :mos/submos-representation-mode :all-modes)
+                :style (when (= :all-modes (state-map :mos/submos-representation-mode))
+                         {:background-color "#ffc107"}) }
+       "Show modes"]
       [:button {:class (str "wt__mos-secondary-data-button "
                             (when (= :unique-mos (state-map :mos/submos-representation-mode))
                               "selected"))
                 :on-click #(swap! state assoc
                                   :mos/submos-representation-mode :unique-mos)}
-       "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]]
+       "Show unique secondary MOS" [:small " (rotated to the first degree of the MOS)"]]
+      [:div [:label "Hide MOS with generator 1"
+             [:input
+              {:type "checkbox"
+               :checked (@state :mos/remove-generator-1)
+               :on-click #(swap! state update :mos/remove-generator-1 not)
+               }]]]]
      [:div {:class "wt__mos-secondary-data-main"}
       [:h3 "Secondary MOS"]
       (if (seq submos)
@@ -151,5 +166,5 @@
               :on-click #(calculate-mos state)} "Calculate"]]
    (when (@state :mos/mos)
      (render-mos-table state (@state :mos/mos)))
-   (when (@state :mos/submos-data)
+   (when (get-submos-data @state)
      (render-submos-data state @state))])
