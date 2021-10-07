@@ -1,5 +1,6 @@
 (ns wilson-tunings.cps
   (:require ["tone/build/esm/index" :as Tone]
+            [clojure.math.combinatorics :as combo]
             [clojure.string :as str]
             [com.gfredericks.exact :as e]
             [erv.cps.core :as cps]
@@ -7,9 +8,10 @@
             [erv.scale.scl :as scl]
             [erv.utils.conversions :as conv :refer [cps->midi]]
             [erv.utils.core :as utils]
-            [wilson-tunings.state :refer [state]]
             [reagent.core :as r]
-            [time-time.dynacan.players.gen-poly :as gp]))
+            [time-time.dynacan.players.gen-poly :as gp]
+            [wilson-tunings.state :refer [state]]
+            [clojure.set :as set]))
 
 (defn parse-generators [generators]
   (-> generators (str/split #",")
@@ -108,36 +110,43 @@
 (defonce player (r/atom {:mode :seq :durs "1, 0.5" :degrees "0, 1, 2"}))
 
 (defn set-degrees! [degrees] (swap! player assoc :degrees (str/join ", " (sort degrees))))
+(do
+  (defn factors-btns [{:keys [scale meta]}]
+    (let [size (meta :cps/size)
+          generators (meta :cps/generators)
+          scale* (->> scale (map-indexed (fn [i deg] (assoc deg :degree i))))]
+      (->> (range size)
+           (mapcat #(combo/combinations generators %))
+           (filter seq)
+           (map (fn [factors*]
+                  [factors*
+                   (->> scale*
+                        (filter (fn [deg]
+                                  (empty? (set/difference (set factors*) (:set deg)))))
+                        (map :degree))]))
 
-(defn factors-btns [scale]
-  (let [degrees-per-factor
-        (->> scale
-             (map-indexed (fn [i deg] (assoc deg :degree i)))
-             (reduce
-              (fn [acc deg]
-                (reduce (fn [acc factor] (update acc factor conj (:degree deg)))
-                        acc
-                        (:set deg)))
-              {}))
-        factors (sort (keys degrees-per-factor))]
-    (map (fn [fac]
-           [:button
-            {:key fac
-             :on-click #(set-degrees! (degrees-per-factor fac))}
-            fac])
-         factors))
-  )
+           (map (fn [[factors degrees]]
+                  [:button
+                   {:key factors
+                    :on-click #(set-degrees! degrees)}
+                   (str "{" (str/join ", " factors) "}")]))))
+    )
+  (factors-btns (cps/make 3 [1 3 4 5 6 7])))
+
+
 (def synth (.toDestination (Tone/Synth.)))
 
 (defn start-playing []
   (let [scale (-> @state :cps/cps-scale :scale)
         degrees (parse-degrees (@player :degrees))
-        durs (parse-durs (@player :durs))]
+        durs (parse-durs (@player :durs))
+        fundamental (@player :fundamental 200)
+        tempo (int (@player :tempo 90))]
     (if (and scale (seq degrees))
       (do (Tone/start)
           (gp/ref-rain
            :id ::cps-demo
-           :tempo (int (@player :tempo 90))
+           :tempo tempo
            :durs durs
            :on-event (fn [ev]
                        (let [index (-> ev :data :index)
@@ -147,7 +156,7 @@
                                    (utils/wrap-at index degrees))
                              durs (-> ev :data :durs)
                              dur (utils/wrap-at index durs)
-                             freq (scale/deg->freq scale (@player :fundamental 200) deg)]
+                             freq (scale/deg->freq scale fundamental deg)]
                          (js/console.log freq dur)
                          (.triggerAttackRelease synth
                                                 freq
@@ -168,7 +177,8 @@
             [:input
              {:on-change #(swap! player assoc :degrees (-> % .-target .-value))
               :value (@player :degrees)}]]]
-     [:div "Set factor chord: " (factors-btns scale)]
+     [:div [:div"Set factor chord" [:small " (Select all the degrees that share the same set of factors) "] ":"]
+      (factors-btns scale-data)]
      [:div [:label "Base frequency:  "
             [:input
              {:type "number"
@@ -188,7 +198,7 @@
             [:input
              {:on-change #(swap! player assoc :durs (-> % .-target .-value))
               :value (@player :durs)}]
-            [:small " Comma separated list of numbers. 1 = quarter note, 0.5 = eight note, etc.  This will loop."]]]
+            [:small " Comma separated list of numbers. 1 = quarter note, 0.5 = eighth note, etc.  This will loop."]]]
      [:div "Arpeggiation Mode: "
       [:label {:style {:margin-left 10 :margin-right 20}}
        "Sequential"
@@ -200,7 +210,7 @@
                 :checked (= :rand (@player :mode))
                 :on-change #(swap! player assoc :mode :rand)}]]]
      [:button {:style {:background-color "#696" :color "white"}
-               :on-click #(start-playing)}
+               :on-click start-playing}
       (if (@player :playing?) "Update" "Start playing")]
      (when (@player :playing?)
        [:button
