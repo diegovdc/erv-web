@@ -70,7 +70,7 @@
   (defn original-generator-sequence [generator-freqs]
     (->> generator-freqs (sort-by second >)
          (mapcat (fn [[gen freq]] (repeat freq gen)))))
-  #_(original-generator-sequence {7 1, 6 5}))
+  (original-generator-sequence {7 1, 6 5}))
 
 (defn demo-button [scale]
   [:button
@@ -79,7 +79,6 @@
       (scale/demo!
        (:scale (edo/from-pattern scale)))) }
    "Demo"])
-
 
 
 (defn permutations [state]
@@ -97,11 +96,7 @@
         base-perms (marwa/base-permutations (count sequence)
                                             gen-interval
                                             closing-interval)
-
-        original-gen-seq (original-generator-sequence
-                          generator-freqs)
-        scale-rotation (marwa/intervals->scale-2
-                        scale-size original-gen-seq)
+        scale-rotation (marwa/intervals->scale-2 scale-size sequence)
         rotated? (not= input-scale scale-rotation)
         perms* (marwa/mos-permutations scale-size base-perms)
         perms (if remove-unisons?
@@ -127,7 +122,7 @@
          (concat
           [[:tr {:key "original"}
             [:td (str scale-rotation)]
-            [:td (str original-gen-seq)]
+            [:td (str sequence)]
             [:td (demo-button scale-rotation)]
             [:td (when rotated? "Original scale (rotated)")]]]
           (map (fn [{:keys [scale generator-seq]}]
