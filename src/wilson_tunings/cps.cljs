@@ -129,10 +129,32 @@
                   [:button
                    {:key factors
                     :on-click #(set-degrees! degrees)}
-                   (str "{" (str/join ", " factors) "}")]))))
+                   (str "{" (str/join ", " factors) "}")]))
+           ((fn [btns] (conj btns [:button {:key "all"
+                                           :on-click #(set-degrees! (range 0 (count scale)))}
+                                  "all"])))))
     )
   (factors-btns (cps/make 3 [1 3 4 5 6 7])))
 
+
+(defn get-rand-degree [scale selected-degrees current-deg shared-factors]
+  (let [current (utils/wrap-at current-deg scale)
+        options (->> selected-degrees
+                     (remove #(= % current-deg))
+                     (map #(assoc (utils/wrap-at % scale) :degree %))
+                     (filter #(<= shared-factors
+                                  (count (set/intersection (:set %)
+                                                           (:set current))))))]
+    (or (:degree (rand-nth options))
+        current-deg)))
+
+(comment
+  (let [scale (->> @state :cps/cps-scale :scale)
+        degrees (->> @player :degrees parse-degrees)
+        current-deg (->> @player :current-degree)
+        shared-factors 2]
+    (get-rand-note scale degrees current-deg shared-factors))
+  )
 
 (def synth (.toDestination (Tone/Synth.)))
 
@@ -141,7 +163,8 @@
         degrees (parse-degrees (@player :degrees))
         durs (parse-durs (@player :durs))
         fundamental (@player :fundamental 200)
-        tempo (int (@player :tempo 90))]
+        tempo (int (@player :tempo 90))
+        min-shared-factors (@player :min-shared-factors 0)]
     (if (and scale (seq degrees))
       (do (Tone/start)
           (gp/ref-rain
@@ -150,27 +173,37 @@
            :durs durs
            :on-event (fn [ev]
                        (let [index (-> ev :data :index)
+                             current-deg (@player :current-degree (rand-nth degrees))
                                         ; deg (utils/wrap-at index degrees)
                              deg (if (= (@player :mode) :rand)
-                                   (rand-nth degrees)
+                                   (get-rand-degree scale
+                                                    degrees
+                                                    current-deg
+                                                    min-shared-factors)
                                    (utils/wrap-at index degrees))
                              durs (-> ev :data :durs)
                              dur (utils/wrap-at index durs)
                              freq (scale/deg->freq scale fundamental deg)]
-                         (js/console.log freq dur)
+                         (swap! player assoc
+                                :current-degree deg
+                                :current-note (utils/wrap-at deg
+                                                             scale))
                          (.triggerAttackRelease synth
                                                 freq
                                                 dur
                                                 js/undefined
-                                                0.5))))
+                                                0.3))))
           (swap! player assoc :playing? true))
       (js/console.error "No scale")))
 
   (js/console.debug "start-playing"))
 
+(comment
+  (start-playing))
 (defn demo [state]
   (let [scale-data (:cps/cps-scale @state)
-        scale (:scale scale-data)]
+        scale (:scale scale-data)
+        size (-> scale-data :meta :cps/size)]
     [:div
      [:h2 "Try this CPS:"]
      [:div [:label "Degrees: "
@@ -209,6 +242,16 @@
        [:input {:type "radio" :name "mode" :value :rand
                 :checked (= :rand (@player :mode))
                 :on-change #(swap! player assoc :mode :rand)}]]]
+     (when (= :rand (@player :mode))
+       [:div
+        [:label "Max different factors: "
+         [:select {:value (- size (@player :min-shared-factors))
+                   :on-change
+                   (fn [ev] (-> ev .-target .-value int
+                               (->> (- size)
+                                    (swap! player assoc :min-shared-factors))))}
+          (map (fn [val] [:option {:key val :value val} val])
+               (range 1 (inc size)))]]])
      [:button {:style {:background-color "#696" :color "white"}
                :on-click start-playing}
       (if (@player :playing?) "Update" "Start playing")]
@@ -216,8 +259,13 @@
        [:button
         {:style {:background-color "#FF6666" :color "white"}
          :on-click #(do (gp/stop) (swap! player assoc :playing? false))}
-        "Stop"])]))
-
+        "Stop"])
+     (when (@player :playing?)
+       [:div "Current note: set {"
+        (str (->> @player :current-note :set (str/join ", ")))
+        "}, degree " (@player :current-degree)])]))
+(comment
+  (-> @player))
 (defn show-scale-data [state]
   [:div
    (let [scale-data (:cps/cps-scale @state)]
@@ -270,7 +318,10 @@
                    (when (and (> (count generators) 0)
                               (> (count set-size) 0)
                               (> period 1))
-                     (swap! state assoc :cps/cps-scale
-                            (get-scale-data set-size generators period))))}
+                     (let [scale-data (get-scale-data set-size
+                                                      generators
+                                                      period)]
+                       (swap! state assoc :cps/cps-scale scale-data)
+                       (swap! player assoc :min-shared-factors 0))))}
      "Generate CPS"]]
    (show-scale-data state)])

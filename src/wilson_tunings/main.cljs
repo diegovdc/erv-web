@@ -1,9 +1,12 @@
 (ns wilson-tunings.main
   (:require [reagent.dom :as dom]
+            [taoensso.timbre :as timbre]
             [wilson-tunings.cps :as cps]
             [wilson-tunings.marwa :as marwa]
             [wilson-tunings.mos :as mos]
             [wilson-tunings.state :refer [state]]))
+
+(timbre/set-level! :info)
 
 (defn app []
   (case (@state :view)
