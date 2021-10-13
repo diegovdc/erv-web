@@ -280,7 +280,7 @@
             (make-tidal-scale scale-data) ]]
           [:div
            [:h3 "Scala file"]
-           [:a {:href (str "data:text/plain;charset=utf-8," content)
+           [:a {:href (str "data:text/plain;charset=utf-8," (js/encodeURIComponent content))
                 :download filename} (str "Download: " filename)]
            [:pre {:style {:background-color "lightgray"}} content]]])
        [:small "Incomplete input. Click on the \"Generate\" button or check that the input data makes sense."]))])
