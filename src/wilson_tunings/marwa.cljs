@@ -36,7 +36,7 @@
      "Calculate generators"]]])
 
 (defn generator-sequences [state]
-  (if-let [seqs (@state :marwa/possible-generator-sequences)]
+  (if-let [seqs (filter :best-sequence? (@state :marwa/possible-generator-sequences))]
     [:div
      [:h2 "Choose a generator sequence for the permutations"]
      [:table
