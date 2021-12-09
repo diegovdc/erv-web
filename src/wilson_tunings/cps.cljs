@@ -13,8 +13,8 @@
             [wilson-tunings.state :refer [state]]
             [clojure.set :as set]))
 
-(defn parse-generators [generators]
-  (-> generators (str/split #",")
+(defn parse-factors [factors]
+  (-> factors (str/split #",")
       (->> (map (comp js/Number str/trim))
            (remove #(or (= % nil?)
                         (= % 0)
@@ -33,8 +33,8 @@
                                    (js/Number.isNaN %)))))]
     (or (seq durs) [1])))
 
-(defn get-scale-data [set-size generators period]
-  (let [gens (parse-generators generators)]
+(defn get-scale-data [set-size factors period]
+  (let [gens (parse-factors factors)]
     (cps/make (int set-size) gens
               :period period
               :norm-fac (->> gens
@@ -113,10 +113,10 @@
 (do
   (defn factors-btns [{:keys [scale meta]}]
     (let [size (meta :cps/size)
-          generators (meta :cps/generators)
+          factors (meta :cps/factors)
           scale* (->> scale (map-indexed (fn [i deg] (assoc deg :degree i))))]
       (->> (range size)
-           (mapcat #(combo/combinations generators %))
+           (mapcat #(combo/combinations factors %))
            (filter seq)
            (map (fn [factors*]
                   [factors*
@@ -294,11 +294,11 @@
    [:small "This is a work in progress, currenlty focusing on creating scales for use on Tidal Cycles."]
    [:form
     [:h2 "Input:"]
-    [:label [:span "Generators" [:small " (comma separated numbers, prefably prime or co-prime)"]]
+    [:label [:span "Factors" [:small " (comma separated numbers, prefably prime or co-prime)"]]
      [:input {:style {:display "block"}
               :placeholder "1,3,5,7"
-              :value (@state :generators)
-              :on-change #(swap! state assoc :generators (-> % .-target .-value))}]]
+              :value (@state :factors)
+              :on-change #(swap! state assoc :factors (-> % .-target .-value))}]]
     [:label [:span "Set size" [:small " (determines the number of degrees in the scale)"]]
      [:input {:style {:display "block"}
               :placeholder "2"
@@ -313,13 +313,14 @@
               :min "1"
               :on-change #(swap! state assoc :period (-> % .-target .-value js/Number))}]]
     [:button
-     {:on-click #(let [{:keys [generators set-size period]} @state]
+     {:on-click #(let [{:keys [factors set-size period]} @state]
+                   (js/console.log @state)
                    (.preventDefault %)
-                   (when (and (> (count generators) 0)
+                   (when (and (> (count factors) 0)
                               (> (count set-size) 0)
                               (> period 1))
                      (let [scale-data (get-scale-data set-size
-                                                      generators
+                                                      factors
                                                       period)]
                        (swap! state assoc :cps/cps-scale scale-data)
                        (swap! player assoc :min-shared-factors 0))))}

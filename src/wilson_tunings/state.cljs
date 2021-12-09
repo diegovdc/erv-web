@@ -4,7 +4,7 @@
             [wilson-tunings.mos :as mos]))
 
 (defonce state (r/atom {:view :nil
-                        :generators "1,3,5,7"
+                        :factors "1,3,5,7"
                         :set-size "2"
                         :period 2
                         :mos/submos-representation-mode :unique-mos
