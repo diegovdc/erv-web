@@ -2,6 +2,7 @@
   (:require [reagent.dom :as dom]
             [taoensso.timbre :as timbre]
             [wilson-tunings.cps :as cps]
+            [wilson-tunings.cps-colors :as cps-colors]
             [wilson-tunings.marwa :as marwa]
             [wilson-tunings.mos :as mos]
             [wilson-tunings.state :refer [state]]))
@@ -11,6 +12,7 @@
 (defn app []
   (case (@state :view)
     :cps (cps/main state)
+    :cps-colors (cps-colors/main state)
     :mos (mos/main state)
     :marwa (marwa/main state)
     [:div {:class "wt__main-screen"}
@@ -18,7 +20,8 @@
      [:p "What do you want to see?"]
      [:button {:on-click #(swap! state assoc :view :mos)} "Moments of symmetry calculator"]
      [:button {:on-click #(swap! state assoc :view :marwa)} "Marwa Permutations"]
-     [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]]))
+     [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]
+     [:button {:on-click #(swap! state assoc :view :cps-colors)} "CPS Colors (experiment)"]]))
 
 (defn start
   ([] (start "wilson-tunings-calculator"))

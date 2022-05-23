@@ -24,7 +24,9 @@
   },
   "license": "MIT",
   "dependencies": {
+    "color-blend": "^3.0.1",
     "react": "16.13.0",
+    "react-color": "^2.19.3",
     "react-dom": "16.13.0",
     "tone": "^14.7.77"
   }
