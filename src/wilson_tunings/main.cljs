@@ -5,6 +5,7 @@
             [wilson-tunings.cps-colors :as cps-colors]
             [wilson-tunings.marwa :as marwa]
             [wilson-tunings.mos :as mos]
+            [wilson-tunings.mos2 :as mos2]
             [wilson-tunings.state :refer [state]]))
 
 (timbre/set-level! :info)
@@ -14,11 +15,13 @@
     :cps (cps/main state)
     :cps-colors (cps-colors/main state)
     :mos (mos/main state)
+    :mos.v2 (mos2/main state)
     :marwa (marwa/main state)
     [:div {:class "wt__main-screen"}
      [:h1 "Tools for exploring some of Erv Wilsons scale concepts"]
      [:p "What do you want to see?"]
      [:button {:on-click #(swap! state assoc :view :mos)} "Moments of symmetry calculator"]
+     [:button {:on-click #(swap! state assoc :view :mos.v2)} "Moments of symmetry calculator (V2)"]
      [:button {:on-click #(swap! state assoc :view :marwa)} "Marwa Permutations"]
      [:button {:on-click #(swap! state assoc :view :cps)} "CPS calculator"]
      [:button {:on-click #(swap! state assoc :view :cps-colors)} "CPS Colors (experiment)"]]))
