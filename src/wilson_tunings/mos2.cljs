@@ -108,7 +108,7 @@
   [:div
    [:h1 {:class "wt__title wt__mos-title"} "Moments of symmetry calculator (V2)"]
    [:div {:class "wt__credits"}
-    "This is an version of the MOS calculator that has been optimized for calculating secondary MOS for large MOS. Therefore it does not show traverse MOS because at present they are only found in a sort of brute force way. At the moment this version does not have buttons for switching between different kinds of representation of the secondary MOS, and so this it shows all modes for any given MOS."]
+    "This is an version of the MOS calculator that has been optimized for calculating secondary MOS for large MOS. Therefore it does not show traverse MOS because at present they are only found in a sort of brute force way. At the moment this version does not have buttons for switching between different kinds of representation of the secondary MOS, and because of this, it only shows all modes for any given MOS."]
    [:div {:class "wt__credits"}
     "Developed by: " [:a {:href "https://echoic.space"} "Diego Villaseñor"] " with guidance by Kraig Grady and Billy Stiltner. "
     [:a {:href "https://github.com/diegovdc/erv-web"} "Source code"]]
