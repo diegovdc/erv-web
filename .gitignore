@@ -7,3 +7,5 @@ target/
 umd/
 /**/#*
 /**/.#*
+/**/.lsp
+/**/.clj-kondo
