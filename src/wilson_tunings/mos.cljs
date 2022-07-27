@@ -56,7 +56,6 @@
         res (map #(nth submos %) indexes)]
     (if (= (count res) submos-size) res submos)))
 
-
 (defn render-submos-data*
   [state-map i {:keys [pattern generator submos submos-by-mos period]}]
   [:div {:key i :class "wt__mos-secondary-data-detail"}
@@ -95,23 +94,28 @@
                       submos-by-mos)
      nil)])
 
-(defn get-submos-data [state-map]
-  #_(state-map :mos/submos-data)
-  (if (state-map :mos/remove-generator-1)
+(defn maybe-remove-generator-1
+  [remove-generator-1? submos-data]
+  (if remove-generator-1?
     (filter #(not= 1 (:generator %))
-            (state-map :mos/submos-data))
-    (state-map :mos/submos-data)))
+            submos-data)
+    submos-data))
 
 (defn render-submos-data [state state-map]
   (let [pattern (@state :mos/selected-mos)
-        submos-data (get-submos-data state-map)
-        submos (filter :true-submos? submos-data)
-        neighboring-submos (remove :true-submos? submos-data)
+        submos-data (state-map :mos/submos-data)
+        submos*  (filter :true-submos? submos-data)
+        submos (maybe-remove-generator-1
+                (state-map :mos/remove-generator-1)
+                submos*)
+        neighboring-submos (maybe-remove-generator-1
+                            (state-map :mos/remove-generator-1)
+                            (remove :true-submos? submos-data))
         nothing-to-see (fn [] [:small "nil"])]
     [:div {:class "wt__mos-secondary-data"}
      [:h4 (str "Viewing data for: ") (count pattern) ")" (apply + pattern)]
-     [:small {:class "wt__mos-secondary-data-mos-description" }
-      "Row: " (count pattern) ", MOS: " (str/join ", " pattern) ]
+     [:small {:class "wt__mos-secondary-data-mos-description"}
+      "Row: " (count pattern) ", MOS: " (str/join ", " pattern)]
      [:div
       [:button {:class (str "wt__mos-secondary-data-button "
                             (when (= :all-modes (state-map :mos/submos-representation-mode))
@@ -119,7 +123,7 @@
                 :on-click #(swap! state assoc
                                   :mos/submos-representation-mode :all-modes)
                 :style (when (= :all-modes (state-map :mos/submos-representation-mode))
-                         {:background-color "#ffc107"}) }
+                         {:background-color "#ffc107"})}
        "Show modes"]
       [:button {:class (str "wt__mos-secondary-data-button "
                             (when (= :unique-mos (state-map :mos/submos-representation-mode))
@@ -131,10 +135,13 @@
              [:input
               {:type "checkbox"
                :checked (@state :mos/remove-generator-1)
-               :on-click #(swap! state update :mos/remove-generator-1 not)
-               }]]]]
+               :on-click #(swap! state update :mos/remove-generator-1 not)}]
+             [:small " (NOTE: if a secondary MOS is hidden we will let you know.)"]]]]
      [:div {:class "wt__mos-secondary-data-main"}
       [:h3 "Secondary MOS"]
+      (when (> (count submos*) (count submos))
+        [:div [:small {:style {:color "red"}}
+               "A secondary MOS with generator 1 has been hidden."]])
       (if (seq submos)
         (reverse (map-indexed (partial render-submos-data* @state) submos))
         (nothing-to-see))
@@ -147,7 +154,7 @@
 (defn main [state]
   [:div
    [:h1 {:class "wt__title wt__mos-title"} "Moments of symmetry calculator"]
-   [:div {:class "wt__credits" }
+   [:div {:class "wt__credits"}
     "Developed by: " [:a {:href "https://echoic.space"} "Diego Villaseñor"] " with guidance by Kraig Grady and Billy Stiltner. "
     [:a {:href "https://github.com/diegovdc/erv-web"} "Source code"]]
    [:div {:class "wt__mos-form"}
