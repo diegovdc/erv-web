@@ -1,7 +1,7 @@
 (ns wilson-tunings.main
   (:require [reagent.dom :as dom]
             [taoensso.timbre :as timbre]
-            [wilson-tunings.cps :as cps]
+            [wilson-tunings.cps.core :as cps]
             [wilson-tunings.cps-colors :as cps-colors]
             [wilson-tunings.marwa :as marwa]
             [wilson-tunings.mos :as mos]

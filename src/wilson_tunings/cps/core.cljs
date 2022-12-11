@@ -1,17 +1,20 @@
-(ns wilson-tunings.cps
-  (:require ["tone/build/esm/index" :as Tone]
-            [clojure.math.combinatorics :as combo]
-            [clojure.string :as str]
-            [com.gfredericks.exact :as e]
-            [erv.cps.core :as cps]
-            [erv.scale.core :as scale]
-            [erv.scale.scl :as scl]
-            [erv.utils.conversions :as conv :refer [cps->midi]]
-            [erv.utils.core :as utils]
-            [reagent.core :as r]
-            [time-time.dynacan.players.gen-poly :as gp]
-            [wilson-tunings.state :refer [state]]
-            [clojure.set :as set]))
+(ns wilson-tunings.cps.core
+  (:require
+   ["tone/build/esm/index" :as Tone]
+   [clojure.math.combinatorics :as combo]
+   [clojure.set :as set]
+   [clojure.string :as str]
+   [com.gfredericks.exact :as e]
+   [erv.cps.core :as cps]
+   [erv.scale.core :as scale]
+   [erv.scale.scl :as scl]
+   [erv.utils.conversions :as conv]
+   [erv.utils.core :as utils]
+   [reagent.core :as r]
+   [time-time.dynacan.players.gen-poly :as gp]
+   [wilson-tunings.cps.analysis :as cps-analysis]
+   [wilson-tunings.state :refer [state]]
+   [wilson-tunings.utils :refer [y-space]]))
 
 (defn parse-factors [factors]
   (-> factors (str/split #",")
@@ -64,7 +67,6 @@
     (e/native->integer num)
     (float->ratio num)))
 
-
 (defn within-bounding-period
   "Transposes a ratio withing a bounding-period.
   The octave is a `bounding-period` of 2,the tritave of 3, etc."
@@ -105,8 +107,6 @@
         [:td (str/join ", " set)]])
      scale)]])
 
-
-
 (defonce player (r/atom {:mode :seq :durs "1, 0.5" :degrees "0, 1, 2"}))
 
 (defn set-degrees! [degrees] (swap! player assoc :degrees (str/join ", " (sort degrees))))
@@ -131,11 +131,9 @@
                     :on-click #(set-degrees! degrees)}
                    (str "{" (str/join ", " factors) "}")]))
            ((fn [btns] (conj btns [:button {:key "all"
-                                           :on-click #(set-degrees! (range 0 (count scale)))}
-                                  "all"])))))
-    )
+                                            :on-click #(set-degrees! (range 0 (count scale)))}
+                                   "all"]))))))
   (factors-btns (cps/make 3 [1 3 4 5 6 7])))
-
 
 (defn get-rand-degree [scale selected-degrees current-deg shared-factors]
   (let [current (utils/wrap-at current-deg scale)
@@ -153,8 +151,7 @@
         degrees (->> @player :degrees parse-degrees)
         current-deg (->> @player :current-degree)
         shared-factors 2]
-    (get-rand-note scale degrees current-deg shared-factors))
-  )
+    (get-rand-note scale degrees current-deg shared-factors)))
 
 (def synth (.toDestination (Tone/Synth.)))
 
@@ -210,7 +207,7 @@
             [:input
              {:on-change #(swap! player assoc :degrees (-> % .-target .-value))
               :value (@player :degrees)}]]]
-     [:div [:div"Set factor chord" [:small " (Select all the degrees that share the same set of factors) "] ":"]
+     [:div [:div "Set factor chord" [:small " (Select all the degrees that share the same set of factors) "] ":"]
       (factors-btns scale-data)]
      [:div [:label "Base frequency:  "
             [:input
@@ -248,8 +245,8 @@
          [:select {:value (- size (@player :min-shared-factors))
                    :on-change
                    (fn [ev] (-> ev .-target .-value int
-                               (->> (- size)
-                                    (swap! player assoc :min-shared-factors))))}
+                                (->> (- size)
+                                     (swap! player assoc :min-shared-factors))))}
           (map (fn [val] [:option {:key val :value val} val])
                (range 1 (inc size)))]]])
      [:button {:style {:background-color "#696" :color "white"}
@@ -277,14 +274,13 @@
            (demo state)]
           [:div [:h3 "MIDI tuning (for use with SuperCollider or Tidal Cycles)"]
            [:pre {:style {:background-color "lightgray"}}
-            (make-tidal-scale scale-data) ]]
+            (make-tidal-scale scale-data)]]
           [:div
            [:h3 "Scala file"]
            [:a {:href (str "data:text/plain;charset=utf-8," (js/encodeURIComponent content))
                 :download filename} (str "Download: " filename)]
            [:pre {:style {:background-color "lightgray"}} content]]])
        [:small "Incomplete input. Click on the \"Generate\" button or check that the input data makes sense."]))])
-
 
 (defn main [state]
   [:div
@@ -325,4 +321,6 @@
                        (swap! state assoc :cps/cps-scale scale-data)
                        (swap! player assoc :min-shared-factors 0))))}
      "Generate CPS"]]
-   (show-scale-data state)])
+   (show-scale-data state)
+   (y-space)
+   (cps-analysis/main state)])
