@@ -1,7 +1,7 @@
 {:paths ["src"]
- :deps {thheller/shadow-cljs {:mvn/version "2.11.4"}
-        reagent/reagent {:mvn/version "1.0.0-alpha2"}
+ :deps {thheller/shadow-cljs {:mvn/version "2.20.12"}
+        reagent/reagent {:mvn/version "1.1.1"}
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
         erv/erv {:local/root "/Users/diego/Music/code/erv"}
         time-time/time-time {:local/root "/Users/diego/Music/code/time-tiem/"}
-        com.gfredericks/exact {:mvn/version"0.1.11"}}}
+        com.gfredericks/exact {:mvn/version "0.1.11"}}}
