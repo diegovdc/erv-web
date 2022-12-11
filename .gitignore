@@ -9,3 +9,6 @@ umd/
 /**/.#*
 /**/.lsp
 /**/.clj-kondo
+/native
+/**/.DS_Store
+.cider-repl-history
