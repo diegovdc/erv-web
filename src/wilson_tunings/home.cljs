@@ -9,7 +9,7 @@
 
 (defn screen []
   [:div {:class "wt__main-screen"}
-   [:h1 "Tools for exploring some of Erv Wilsons scale concepts"]
+   [:h1 "Tools for exploring some of Erv Wilson's scale concepts"]
    [:p "What do you want to see?"]
    [:a {:style href-style :href (href :routes/mos)} "Moments of symmetry calculator"]
    [:a {:style href-style :href (href :routes/mos-v2)} "Moments of symmetry calculator (V2)"]
