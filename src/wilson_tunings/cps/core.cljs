@@ -282,7 +282,7 @@
            [:pre {:style {:background-color "lightgray"}} content]]])
        [:small "Incomplete input. Click on the \"Generate\" button or check that the input data makes sense."]))])
 
-(defn main [state]
+(defn main []
   [:div
    [:h1 "Combination Product Sets Maker"]
    [:p "A tool for creating scales inspired by Erv Wilson's theories. "

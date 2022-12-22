@@ -1,22 +1,21 @@
 (ns wilson-tunings.marwa
-  (:require [erv.marwa.core :as marwa]
-            [erv.edo.core :as edo]
-            [erv.scale.core :as scale]
-            [clojure.string :as str]))
-
-#_(scale/demo! (:scale (edo/from-pattern [2 2 1 2 2 2 1])))
-#_(marwa/get-possible-interval-sequences)
+  (:require
+   [clojure.string :as str]
+   [erv.edo.core :as edo]
+   [erv.marwa.core :as marwa]
+   [erv.scale.core :as scale]
+   [wilson-tunings.state :refer [state]]))
 
 (defn parse-scale [input-value]
   (-> input-value
       (str/split ",")
-      (->> (map (comp js/Number str/trim) ))))
+      (->> (map (comp js/Number str/trim)))))
 
 (def scale-input-id "marwa-input-scale")
 (defn scale-input [state]
   [:div
    [:h2 "Input a MOS scale"]
-   [:small "Note: if the scale is not a MOS, you may get unisons in your permutations (intervals of size 0)" ]
+   [:small "Note: if the scale is not a MOS, you may get unisons in your permutations (intervals of size 0)"]
    [:div
     [:label "Scale: "
      [:input {:id scale-input-id
@@ -36,7 +35,7 @@
      "Calculate generators"]]])
 
 (defn generator-sequences [state]
-  (if-let [seqs (filter :best-sequence? (@state :marwa/possible-generator-sequences))]
+  (when-let [seqs (filter :best-sequence? (@state :marwa/possible-generator-sequences))]
     [:div
      [:h2 "Choose a generator sequence for the permutations"]
      [:table
@@ -77,9 +76,8 @@
    {:on-click
     (fn [_]
       (scale/demo!
-       (:scale (edo/from-pattern scale)))) }
+       (:scale (edo/from-pattern scale))))}
    "Demo"])
-
 
 (defn permutations [state]
   (let [input-scale (@state :marwa/input-scale)
@@ -102,7 +100,7 @@
         perms (if remove-unisons?
                 (remove #(some zero? (:scale %)) perms*)
                 perms*)]
-    (println remove-unisons?)
+
     (when sequence
       [:div
        [:h2 "Permutations" [:small " (" (count perms) ")"]]
@@ -133,19 +131,15 @@
                   [:td]])
                perms))]]])))
 
-(defn main
-  [state]
-  (println (:marwa/input-scale @state) @state)
+(defn main []
   [:div
    [:h1 "Marwa permutations"]
    (scale-input state)
    (generator-sequences state)
    (permutations state)])
 
-
 (comment
   (require '[wilson-tunings.state :refer [state]])
   (-> @wilson-tunings.state/state
       :marwa/input-scale
-      marwa/get-possible-generator-sequences)
-  )
+      marwa/get-possible-generator-sequences))

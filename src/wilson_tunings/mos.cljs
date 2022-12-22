@@ -1,8 +1,10 @@
 (ns wilson-tunings.mos
-  (:require [clojure.string :as str]
-            [erv.mos.mos :as mos]
-            [erv.mos.submos :as submos]
-            [goog.string :refer [format]]))
+  (:require
+   [clojure.string :as str]
+   [erv.mos.mos :as mos]
+   [erv.mos.submos :as submos]
+   [goog.string :refer [format]]
+   [wilson-tunings.state :refer [state]]))
 
 (defn calculate-mos [state]
   (let [state-map @state]
@@ -151,7 +153,7 @@
         (reverse (map-indexed (partial render-submos-data* @state) neighboring-submos))
         (nothing-to-see))]]))
 
-(defn main [state]
+(defn main []
   [:div
    [:h1 {:class "wt__title wt__mos-title"} "Moments of symmetry calculator"]
    [:div {:class "wt__credits"}

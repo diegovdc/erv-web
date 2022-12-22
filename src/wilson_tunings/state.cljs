@@ -1,7 +1,5 @@
 (ns wilson-tunings.state
-  (:require [reagent.core :as r]
-            [wilson-tunings.marwa :as marwa]
-            [wilson-tunings.mos :as mos]))
+  (:require [reagent.core :as r]))
 
 (defonce state (r/atom {:view :nil
                         :factors "1,3,5,7"
