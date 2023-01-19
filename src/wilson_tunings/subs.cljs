@@ -6,3 +6,9 @@
  :current-route
  (fn [db]
    (:current-route db)))
+
+(reg-sub
+ :query-params
+ :<- [:current-route]
+ (fn [current-route]
+   (:query (:parameters current-route))))

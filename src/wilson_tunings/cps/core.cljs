@@ -13,6 +13,7 @@
    [reagent.core :as r]
    [time-time.dynacan.players.gen-poly :as gp]
    [wilson-tunings.cps.analysis :as cps-analysis]
+   [wilson-tunings.cps.common :refer [scale-table]]
    [wilson-tunings.state :refer [state]]
    [wilson-tunings.utils :refer [y-space]]))
 
@@ -36,13 +37,39 @@
                                    (js/Number.isNaN %)))))]
     (or (seq durs) [1])))
 
+(defn dedupe-scale* [scale]
+  (->>  scale
+        (group-by :bounded-ratio)
+        (map (fn [[_ notes]]
+               (let [sets (map :set notes)
+                     archi-sets (map :archi-set notes)]
+                 (-> notes first
+                     ;; (dissoc :set :archi-set)
+                     (assoc :sets (set sets)
+                            :archi-sets (set archi-sets))))))
+        (sort-by :bounded-ratio)
+        (into [])))
+
+(defn dedupe-scale [cps]
+  (let [updated-cps (update cps :scale dedupe-scale*)]
+    (println "deduping" (= (:scale cps) (:scale updated-cps)))
+    (if (= (:scale cps) (:scale updated-cps))
+      cps
+      (assoc-in updated-cps [:meta :cps/deduped?] true))))
+
+(comment
+  (-> @state :cps/cps-scale :scale
+      dedupe-scale*))
+
 (defn get-scale-data [set-size factors period]
   (let [gens (parse-factors factors)]
-    (cps/make (int set-size) gens
-              :period period
-              :norm-fac (->> gens
-                             (take (int set-size))
-                             (apply *)))))
+    (dedupe-scale (cps/make (int set-size) gens
+                            :period period
+                            :norm-fac (->> gens
+                                           sort
+                                           reverse
+                                           (take (int set-size))
+                                           (apply *))))))
 
 (defn make-tidal-scale [scale-data]
   (let [scale (scale-data :scale)
@@ -52,60 +79,6 @@
          "]")))
 
 (defn make-scala-file [scale-data] (scl/make-scl-file scale-data))
-
-(def ONE (e/native->integer 1))
-(defn float->ratio [num]
-  (let [total-decimals (-> (str num)
-                           (str/split ".")
-                           second
-                           count)
-        tens (Math/pow 10 total-decimals)]
-    (e// (e/native->integer (* num tens)) (e/native->integer tens))))
-
-(defn to-e-number [num]
-  (if (= (int num) num)
-    (e/native->integer num)
-    (float->ratio num)))
-
-(defn within-bounding-period
-  "Transposes a ratio withing a bounding-period.
-  The octave is a `bounding-period` of 2,the tritave of 3, etc."
-  [bounding-period ratio norm-fac]
-  #_{:pre [(> bounding-period 1)]}
-
-  (let [bounding-period (to-e-number bounding-period)
-        ratio (e// (to-e-number ratio)
-                   (to-e-number norm-fac))
-        ratio*  (loop [r ratio]
-                  (cond
-                    (e/> r bounding-period) (recur (e// r bounding-period))
-                    (e/< r ONE) (recur (e/* r bounding-period))
-                    (= bounding-period r) ONE
-                    :else r))]
-    (if (e/ratio? ratio*)
-      (str (e/integer->string (e/numerator ratio*)) "/"
-           (e/integer->string (e/denominator ratio*)))
-      (str (e/integer->string ratio*) "/1"))))
-
-(defn scale-table [{:keys [scale meta]}]
-  [:table {:border 1}
-   [:thead
-    [:tr
-     [:th "Degree"]
-     [:th "Cents"]
-     [:th "Ratio"]
-     [:th "Factors"]]]
-   [:tbody
-    (map-indexed
-     (fn [i {:keys [set ratio bounded-ratio bounding-period]}]
-       [:tr {:key set}
-        [:td i]
-        [:td (utils/round2 4 (conv/ratio->cents bounded-ratio))]
-        [:td (str (within-bounding-period bounding-period
-                                          (apply * set)
-                                          (meta :cps/normalized-by)))]
-        [:td (str/join ", " set)]])
-     scale)]])
 
 (defonce player (r/atom {:mode :seq :durs "1, 0.5" :degrees "0, 1, 2"}))
 

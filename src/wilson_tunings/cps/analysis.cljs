@@ -5,7 +5,9 @@
    [clojure.string :as str]
    [erv.cps.core :as cps]
    [erv.cps.utils :refer [subcps-degrees]]
+   [re-frame.core :as rf]
    [reagent.core :as r]
+   [wilson-tunings.cps.common :refer [scale-table]]
    [wilson-tunings.modal :refer [modal]]))
 
 (defonce modal-data (r/atom nil))
@@ -33,11 +35,13 @@
 
 (defn- subset-row
   [cps [subcps-name subcps]]
-  (let [degrees (str/join ", " (:degrees subcps))]
+  (let [degrees (str/join ", " (:degrees subcps))
+        show-tidal-names? (:tidal-names @(rf/subscribe [:query-params]))]
     [:tr {:key subcps-name}
      [:td cell-style subcps-name]
      [:td cell-style degrees]
-     [:td cell-style (tidal-cps-name subcps-name)]
+     (when show-tidal-names?
+       [:td cell-style (tidal-cps-name subcps-name)])
      [:td cell-style [:button {:on-click
                                (fn []
                                  (reset! modal-data {:cps cps
@@ -71,21 +75,34 @@
   [name*
    (assoc subcps :degrees (subcps-degrees cps subcps))])
 
+(defonce page (r/atom 0))
+(defonce page-size 10)
 (defn cps-table
   [cps subcps-list]
   (let [subset-rows (->> subcps-list
                          (map (partial add-degrees cps))
                          (filter-factors @factors-filter-set)
                          (filter-degrees @degrees-filter-set)
-                         (map (partial subset-row cps)))]
-    [:table
-     [:thead
-      [:tr
-       [:th cell-style "Set Name"]
-       [:th cell-style "Degrees"]
-       [:th cell-style "Tidal Name"]
-       [:th cell-style ""]]]
-     [:tbody subset-rows]]))
+                         (map (partial subset-row cps)))
+        total-pages (js/Math.ceil (/ (count subset-rows) page-size))
+        paged-subset-rows (->> subset-rows
+                               (drop (* @page page-size))
+                               (take page-size))
+        show-tidal-names? (:tidal-names @(rf/subscribe [:query-params]))]
+    [:div
+     [:div {:style {:display "flex" :justify-content "center" :gap 16}}
+      [:button {:on-click (fn [] (swap! page (comp #(max 0 %) dec)))} "<<"]
+      [:p (str (inc @page) "/" total-pages)]
+      [:button {:on-click (fn [] (swap! page (comp #(min (dec total-pages) %) inc)))} ">>"]]
+     [:table
+      [:thead
+       [:tr
+        [:th cell-style "Set Name"]
+        [:th cell-style "Degrees"]
+        (when show-tidal-names?
+          [:th cell-style "Tidal Name"])
+        [:th cell-style ""]]]
+      [:tbody paged-subset-rows]]]))
 
 (defn- main-subset-rows
   [cps]
@@ -105,7 +122,8 @@
                                (re-seq #"\d+")
                                (map edn/read-string)
                                set
-                               (reset! factors-filter-set)))}]]])
+                               (reset! factors-filter-set))
+                          (reset! page 0))}]]])
 (defn- degrees-filters-input
   []
   [:div
@@ -118,7 +136,8 @@
                                (re-seq #"\d+")
                                (map edn/read-string)
                                set
-                               (reset! degrees-filter-set)))}]]])
+                               (reset! degrees-filter-set))
+                          (reset! page 0))}]]])
 
 (defn- make-subcps-details
   [{:keys [cps subcps-name subcps]}]
@@ -138,6 +157,8 @@
                                (= set-name subcps-name))))]
     [:div
      [:h2 subcps-name]
+     [:div {:style {:margin-bottom 20}}
+      (scale-table (second (add-degrees cps [subcps-name subcps])))]
      (factor-filters-input)
      (degrees-filters-input)
      [:div
@@ -151,11 +172,12 @@
         [:p "This set does not contain any other set"]
         [:div (cps-table cps subsets)])]]))
 
+(def +all-subcps (memoize cps/+all-subcps))
 (defn main
   [state]
   (when-let [cps* (:cps/cps-scale @state)]
 
-    (let [cps (cps/+all-subcps cps*)]
+    (let [cps (+all-subcps cps*)]
       [:div
        [:h1 "Analysis"]
        (modal @modal-data

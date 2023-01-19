@@ -1,12 +1,13 @@
 (ns wilson-tunings.router.routes
   (:require
    [reitit.coercion.malli]
+   [wilson-tunings.cps-colors :as cps-colors]
+   [wilson-tunings.cps.core :as cps]
    [wilson-tunings.home :as home]
+   [wilson-tunings.marwa :as marwa]
    [wilson-tunings.mos :as mos]
    [wilson-tunings.mos2 :as mos2]
-   [wilson-tunings.marwa :as marwa]
-   [wilson-tunings.cps.core :as cps]
-   [wilson-tunings.cps-colors :as cps-colors]))
+   [wilson-tunings.state :refer [state]]))
 
 (defn test-route []
   [:div "hola"])
@@ -40,9 +41,21 @@
    ["/cps"
     {:name      :routes/cps
      :view      #'cps/main
-     :controllers
-     [{:start (fn [_params])
-       :stop  (fn [_params])}]}]
+     :coercion reitit.coercion.malli/coercion
+     :parameters {:query [:map
+                          [:tidal-names {:optional true} boolean?]
+                          [:factors {:optional true} string?]
+                          [:set-size {:optional true} string?]]}
+     :controllers [{:start (fn [params]
+                             (swap! state
+                                    (fn [state*]
+                                      (-> state*
+                                          (update :factors #(or (:factors params) %))
+                                          (update :set-size #(or (:set-size params) %))
+                                          (update :period #(or (:period params) %))))))
+                    :stop  (fn [_params])
+                    :identity (fn [match]
+                                (-> match :parameters :query))}]}]
    ["/cps-colors"
     {:name      :routes/cps-colors
      :view      #'cps-colors/main
