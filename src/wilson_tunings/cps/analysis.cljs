@@ -13,6 +13,12 @@
 (defonce modal-data (r/atom nil))
 (defonce factors-filter-set (r/atom #{}))
 (defonce degrees-filter-set (r/atom #{}))
+(defonce main-page (r/atom 0))
+(defonce supersets-page (r/atom 0))
+(defonce subsets-page (r/atom 0))
+(defonce page-size 10)
+
+(def +all-subcps (memoize cps/+all-subcps))
 
 (defn find-supersets
   "Get all subcps that include all the given `sets`.
@@ -24,6 +30,17 @@
                                  (set (map :set scale))
                                  factors-set))))))
 
+(defn find-subsets
+  "Get all subcps that include all the given `sets`.
+  Note that `sets` is a set of sets."
+  [cps factors-set]
+  (->> cps :subcps
+       (filter (fn [[_ {:keys [scale]}]]
+                 (let [scale-set (set (map :set scale))]
+                   (= scale-set (set/intersection
+                                 scale-set
+                                 factors-set)))))))
+
 (defn tidal-cps-name [cps-name]
   (-> cps-name
       (str/replace #"\)" "oo")
@@ -32,7 +49,6 @@
       (str/replace #"-"  "t")))
 
 (def cell-style {:style {:padding 10}})
-
 (defn- subset-row
   [cps [subcps-name subcps]]
   (let [degrees (str/join ", " (:degrees subcps))
@@ -44,10 +60,13 @@
        [:td cell-style (tidal-cps-name subcps-name)])
      [:td cell-style [:button {:on-click
                                (fn []
+                                 (reset! supersets-page 0)
+                                 (reset! subsets-page 0)
                                  (reset! modal-data {:cps cps
                                                      :subcps-name subcps-name
                                                      :subcps subcps}))}
                       "Show Details"]]]))
+
 (defn filter-factors
   "Remove sets from a `subcps-list` if they do not contain the required factors"
   [factors-set subcps-list]
@@ -74,11 +93,11 @@
   [cps [name* subcps]]
   [name*
    (assoc subcps :degrees (subcps-degrees cps subcps))])
+(comment
+  (-> subsets-page))
 
-(defonce page (r/atom 0))
-(defonce page-size 10)
 (defn cps-table
-  [cps subcps-list]
+  [cps subcps-list page-atom]
   (let [subset-rows (->> subcps-list
                          (map (partial add-degrees cps))
                          (filter-factors @factors-filter-set)
@@ -86,14 +105,15 @@
                          (map (partial subset-row cps)))
         total-pages (js/Math.ceil (/ (count subset-rows) page-size))
         paged-subset-rows (->> subset-rows
-                               (drop (* @page page-size))
+                               (drop (* @page-atom page-size))
                                (take page-size))
         show-tidal-names? (:tidal-names @(rf/subscribe [:query-params]))]
     [:div
      [:div {:style {:display "flex" :justify-content "center" :gap 16}}
-      [:button {:on-click (fn [] (swap! page (comp #(max 0 %) dec)))} "<<"]
-      [:p (str (inc @page) "/" total-pages)]
-      [:button {:on-click (fn [] (swap! page (comp #(min (dec total-pages) %) inc)))} ">>"]]
+      [:button {:on-click (fn [] (swap! page-atom (comp #(max 0 %) dec)))} "<<"]
+      [:p (str (inc @page-atom) "/" total-pages)]
+      [:button {:on-click (fn []
+                            (swap! page-atom (comp #(min (dec total-pages) %) inc)))} ">>"]]
      [:table
       [:thead
        [:tr
@@ -123,7 +143,10 @@
                                (map edn/read-string)
                                set
                                (reset! factors-filter-set))
-                          (reset! page 0))}]]])
+                          (reset! main-page 0)
+                          (reset! supersets-page 0)
+                          (reset! subsets-page 0))}]]])
+
 (defn- degrees-filters-input
   []
   [:div
@@ -137,24 +160,37 @@
                                (map edn/read-string)
                                set
                                (reset! degrees-filter-set))
-                          (reset! page 0))}]]])
+                          (reset! main-page 0)
+                          (reset! supersets-page 0)
+                          (reset! subsets-page 0))}]]])
+
+(def ^:private supersets-data
+  (memoize (fn [cps subcps-name subcps]
+             (->> subcps
+                  :scale
+                  (map :set)
+                  set
+                  (find-supersets cps)
+                  (remove (fn [[set-name]]
+                            (= set-name subcps-name)))
+                  (sort-by (juxt (comp count :scale second) first))
+                  reverse))))
+(def ^:private subsets-data
+  (memoize (fn [cps subcps-name subcps]
+             (->> subcps
+                  :scale
+                  (map :set)
+                  set
+                  (find-subsets cps)
+                  (remove (fn [[set-name]]
+                            (= set-name subcps-name)))
+                  (sort-by (juxt (comp count :scale second) first))
+                  reverse))))
 
 (defn- make-subcps-details
   [{:keys [cps subcps-name subcps]}]
-  (let [supersets  (->> subcps
-                        :scale
-                        (map :set)
-                        set
-                        (find-supersets cps)
-                        (remove (fn [[set-name]]
-                                  (= set-name subcps-name)))
-                        (sort-by (juxt (comp count :scale second) first))
-                        reverse)
-        subsets (->> subcps cps/+all-subcps :subcps
-                     (sort-by (juxt (comp count :scale second) first))
-                     reverse
-                     (remove (fn [[set-name]]
-                               (= set-name subcps-name))))]
+  (let [supersets  (supersets-data cps subcps-name subcps)
+        subsets (subsets-data cps subcps-name subcps)]
     [:div
      [:h2 subcps-name]
      [:div {:style {:margin-bottom 20}}
@@ -165,14 +201,13 @@
       [:h3 "Supersets (sets that contain this set)"]
       (if-not (seq supersets)
         [:p "This set is not contained by any other set"]
-        [:div (cps-table cps supersets)])]
+        [:div (cps-table cps supersets supersets-page)])]
      [:div
       [:h3 "Subsets (sets contained by this set)"]
       (if-not (seq subsets)
         [:p "This set does not contain any other set"]
-        [:div (cps-table cps subsets)])]]))
+        [:div (cps-table cps subsets subsets-page)])]]))
 
-(def +all-subcps (memoize cps/+all-subcps))
 (defn main
   [state]
   (when-let [cps* (:cps/cps-scale @state)]
@@ -181,9 +216,12 @@
       [:div
        [:h1 "Analysis"]
        (modal @modal-data
-              (fn [] (reset! modal-data nil))
+              (fn []
+                (reset! modal-data nil)
+                (reset! supersets-page 0)
+                (reset! subsets-page 0))
               (make-subcps-details @modal-data))
        (factor-filters-input)
        (degrees-filters-input)
        [:h2 "Subsets"]
-       (cps-table cps (main-subset-rows cps))])))
+       (cps-table cps (main-subset-rows cps) main-page)])))
