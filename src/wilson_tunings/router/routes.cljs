@@ -3,6 +3,7 @@
    [reitit.coercion.malli]
    [wilson-tunings.cps-colors :as cps-colors]
    [wilson-tunings.cps.core :as cps]
+   [wilson-tunings.constant-structure-analyzer.core :as cs-analyzer]
    [wilson-tunings.home :as home]
    [wilson-tunings.marwa :as marwa]
    [wilson-tunings.mos :as mos]
@@ -59,6 +60,12 @@
    ["/cps-colors"
     {:name      :routes/cps-colors
      :view      #'cps-colors/main
+     :controllers
+     [{:start (fn [_params])
+       :stop  (fn [_params])}]}]
+   ["/constant-structure-analyzer"
+    {:name      :routes/constant-structure-analyzer
+     :view      #'cs-analyzer/main
      :controllers
      [{:start (fn [_params])
        :stop  (fn [_params])}]}]])

@@ -15,4 +15,5 @@
    [:a {:style href-style :href (href :routes/mos-v2)} "Moments of symmetry calculator (V2)"]
    [:a {:style href-style :href (href :routes/marwa)} "Marwa Permutations"]
    [:a {:style href-style :href (href :routes/cps)} "CPS Calculator"]
-   [:a {:style href-style :href (href :routes/cps-colors)} "CPS Color (experiment)"]])
+   [:a {:style href-style :href (href :routes/cps-colors)} "CPS Color (experiment)"]
+   [:a {:style href-style :href (href :routes/constant-structure-analyzer)} "Constant Structure Analyzer"]])
