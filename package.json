@@ -14,7 +14,9 @@
     "re-frisk-remote": "shadow-cljs run re-frisk-remote.core/start",
     "prepublishOnly": "npm run release:browser && cp build/browser/browser-main.js umd/wilson-tunings-web.js"
   },
-  "files": ["umd"],
+  "files": [
+    "umd"
+  ],
   "keywords": [],
   "devDependencies": {
     "npm-run-all": "^4.1.5",
@@ -24,6 +26,7 @@
   "license": "MIT",
   "dependencies": {
     "color-blend": "^3.0.1",
+    "p5": "^1.6.0",
     "react": "16.13.0",
     "react-color": "^2.19.3",
     "react-dom": "16.13.0",
