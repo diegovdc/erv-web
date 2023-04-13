@@ -4,16 +4,10 @@
    [com.gfredericks.exact :as e]
    [erv.cps.core :as cps]
    [erv.utils.conversions :as conv]
-   [erv.utils.core :as utils]))
+   [erv.utils.core :as utils]
+   [erv.utils.ratios :refer [float->ratio]]))
 
 (def ONE (e/native->integer 1))
-(defn float->ratio [num]
-  (let [total-decimals (-> (str num)
-                           (str/split ".")
-                           second
-                           count)
-        tens (Math/pow 10 total-decimals)]
-    (e// (e/native->integer (* num tens)) (e/native->integer tens))))
 
 (defn to-e-number [num]
   (if (= (int num) num)

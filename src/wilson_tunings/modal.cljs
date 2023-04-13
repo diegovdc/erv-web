@@ -2,8 +2,6 @@
   (:require
    [wilson-tunings.utils :refer [set-body-scrolling!]]))
 
-(comment)
-
 (defn modal [open? close-fn children]
   (when open?
     (set-body-scrolling! false)

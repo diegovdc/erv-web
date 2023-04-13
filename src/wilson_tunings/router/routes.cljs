@@ -4,6 +4,7 @@
    [wilson-tunings.cps-colors :as cps-colors]
    [wilson-tunings.cps.core :as cps]
    [wilson-tunings.constant-structure-analyzer.core :as cs-analyzer]
+   [wilson-tunings.lattice-maker.core :as lattice-maker]
    [wilson-tunings.home :as home]
    [wilson-tunings.marwa :as marwa]
    [wilson-tunings.mos :as mos]
@@ -66,6 +67,12 @@
    ["/constant-structure-analyzer"
     {:name      :routes/constant-structure-analyzer
      :view      #'cs-analyzer/main
+     :controllers
+     [{:start (fn [_params])
+       :stop  (fn [_params])}]}]
+   ["/lattice-maker"
+    {:name      :routes/lattice-maker
+     :view      #'lattice-maker/main
      :controllers
      [{:start (fn [_params])
        :stop  (fn [_params])}]}]])
