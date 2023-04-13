@@ -126,8 +126,10 @@
                                        (try
                                          (reset! lattice-data
                                                  (ratios->lattice-data base-coords
-                                                                       (str/split @scale-string #"\s+")))
-                                         (catch js/Error _ (js/alert "There was an error generating the lattice")))
+                                                                       (filter seq (str/split @scale-string #"\s+"))))
+                                         (catch js/Error e
+                                           (js/alert "There was an error generating the lattice")
+                                           (js/console.error e)))
                                        (reset! scale-modal-open? false)
                                        (set-body-scrolling! true))}
                   "Create Lattice"]])
