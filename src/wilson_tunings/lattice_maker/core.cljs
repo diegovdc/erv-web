@@ -7,7 +7,7 @@
    [wilson-tunings.modal :as modal]
    [wilson-tunings.utils :refer [set-body-scrolling!]]))
 
-(def scale-string (r/atom "45/44
+(defonce scale-string (r/atom "45/44
 35/33
 12/11
 9/8
@@ -30,20 +30,20 @@
 21/11
 2/1"))
 
-(def lattice-data (r/atom (ratios->lattice-data base-coords #_["1/1" "15/14" "5/4" "10/7" "3/2" "12/7"]
-                                                #_["1/1"
-                                                   "80/77"
-                                                   "12/11"
-                                                   "8/7"
-                                                   "96/77"
-                                                   "10/7"
-                                                   "16/11"
-                                                   "120/77"
-                                                   "12/7"
-                                                   "20/11"]
-                                                (str/split
-                                                 @scale-string
-                                                 #"\s+"))))
+(defonce lattice-data (r/atom (ratios->lattice-data base-coords #_["1/1" "15/14" "5/4" "10/7" "3/2" "12/7"]
+                                                    #_["1/1"
+                                                       "80/77"
+                                                       "12/11"
+                                                       "8/7"
+                                                       "96/77"
+                                                       "10/7"
+                                                       "16/11"
+                                                       "120/77"
+                                                       "12/7"
+                                                       "20/11"]
+                                                    (str/split
+                                                     @scale-string
+                                                     #"\s+"))))
 
 (comment
   (-> js/window.innerWidth)
@@ -52,24 +52,41 @@
 (/ (-> js/window.innerHeight) (+ 54 13))
 (defn draw [width height lattice-data]
   (fn []
-    (let [{:keys [data edges min-x max-x min-y max-y]} @lattice-data
+    (let [{:keys [data edges min-x max-x min-y max-y period]} @lattice-data
           x-length (->> [min-x max-x]
                         (map Math/abs)
-                        (apply + 10))
+                        (apply +))
           y-length (->> [min-y max-y]
                         (map Math/abs)
-                        (apply + 10))
-          cx (- (/ width 2) (/ x-length 2))
-          cy (- (/ height 2) (/ y-length 2))
+                        (apply +))
+          cx (/ width 2)
+          cy (/ height 2)
           zoom (* 0.8 (min (/ width x-length)
                            (/ height y-length)))]
       (q/background 0)
       (q/translate cx cy)
-
-      (q/stroke 255)
-      (q/fill 255)
-
       (q/scale zoom)
+      (comment (q/stroke 255 255)
+
+               (q/rect min-x min-y x-length y-length))
+
+      (q/stroke 255 255)
+
+      (comment (q/fill 255 0)
+               (q/stroke-weight 20)
+               (q/point 0 0))
+
+      (q/fill 255 255)
+      (q/push-matrix)
+      (q/translate (- (/ (+ max-x min-x) 2))
+                   (- (/ (+ max-y min-y) 2)))
+
+      (comment
+        (q/stroke 255 255)
+        (q/fill 255 255 0 200)
+        (q/stroke-weight 2.5)
+        (q/rect min-x min-y x-length y-length))
+
       (q/stroke-weight 2.5)
       (q/fill 255)
       (doseq [{:keys [coords]} data]
@@ -84,14 +101,21 @@
       (q/text-font "Montserrat" 5)
       (q/stroke-weight 0)
       #_(q/fill 255 0 0)
-      (doseq [{:keys [ratio coords]} data]
-        (q/text ratio (+ (:x coords) 2) (- (:y coords) 0.4))))))
+      (doseq [{:keys [ratio coords numer-factors denom-factors]} data]
+        (q/text (let [denom-factors* (str/join "*" (remove #(= period %) denom-factors))]
+                  (str (str/join "*" (let [ns (remove #(= period %) numer-factors)]
+                                       (if (seq ns) ns [1])))
+                       (when (seq denom-factors*)
+                         (str "/" denom-factors*))))
+                #_ratio (+ (:x coords) 2) (- (:y coords) 0.4))))))
 
 (defn lattice []
   (r/create-class
    {:component-did-mount (fn []
                            (let [width (- js/window.innerWidth 16)
-                                 height js/window.innerHeight]
+                                 height js/window.innerHeight
+                                 #_#_#_#_width 200
+                                     height 200]
 
                              (q/defsketch lattice-tool
                                :title "Lattice Tool"
