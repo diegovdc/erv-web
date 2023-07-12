@@ -1,7 +1,8 @@
 (ns wilson-tunings.lattice-maker.core
   (:require
    [clojure.string :as str]
-   [erv.lattice.v2 :refer [base-coords ratios->lattice-data]]
+   [erv.lattice.v2 :refer [base-coords maybe-make-d1-connection
+                           ratios->lattice-data]]
    [quil.core :as q :include-macros true]
    [reagent.core :as r]
    [wilson-tunings.modal :as modal]
@@ -30,6 +31,8 @@
 21/11
 2/1"))
 
+
+
 (defonce lattice-data (r/atom (ratios->lattice-data base-coords #_["1/1" "15/14" "5/4" "10/7" "3/2" "12/7"]
                                                     #_["1/1"
                                                        "80/77"
@@ -42,15 +45,17 @@
                                                        "12/7"
                                                        "20/11"]
                                                     (str/split
-                                                     @scale-string
-                                                     #"\s+"))))
+                                                      @scale-string
+                                                      #"\s+"))))
+
+(defonce text-type (r/atom :ratio))
 
 (comment
   (-> js/window.innerWidth)
   (-> @lattice-data))
 (/ (-> js/window.innerWidth) (+ 29 29))
 (/ (-> js/window.innerHeight) (+ 54 13))
-(defn draw [width height lattice-data]
+(defn draw [text-type width height lattice-data]
   (fn []
     (let [{:keys [data edges min-x max-x min-y max-y period]} @lattice-data
           x-length (->> [min-x max-x]
@@ -61,7 +66,7 @@
                         (apply +))
           cx (/ width 2)
           cy (/ height 2)
-          zoom (* 0.8 (min (/ width x-length)
+          zoom (* 0.7 (min (/ width x-length)
                            (/ height y-length)))]
       (q/background 0)
       (q/translate cx cy)
@@ -103,11 +108,13 @@
       #_(q/fill 255 0 0)
       (doseq [{:keys [ratio coords numer-factors denom-factors]} data]
         (q/text (let [denom-factors* (str/join "*" (remove #(= period %) denom-factors))]
-                  (str (str/join "*" (let [ns (remove #(= period %) numer-factors)]
-                                       (if (seq ns) ns [1])))
-                       (when (seq denom-factors*)
-                         (str "/" denom-factors*))))
-                #_ratio (+ (:x coords) 2) (- (:y coords) 0.4))))))
+                  (if (= :factors @text-type)
+                    (str (str/join "*" (let [ns (remove #(= period %) numer-factors)]
+                                         (if (seq ns) ns [1])))
+                         (when (seq denom-factors*)
+                           (str "/" denom-factors*)))
+                    ratio))
+                 (+ (:x coords) 2) (- (:y coords) 0.4))))))
 
 (defn lattice []
   (r/create-class
@@ -123,8 +130,8 @@
                                :settings #(q/smooth 80)
                                :setup (fn []
                                         #_(q/pixel-density 2)
-                                        (q/frame-rate 1))
-                               :draw (draw width height lattice-data)
+                                        (q/frame-rate 24))
+                               :draw (draw text-type width height lattice-data)
                                :size [width height])))
     :reagent-render
     (fn []
@@ -137,6 +144,20 @@
   [:div
    [:h1 "Lattice Maker"]
    [:button {:on-click (fn [] (reset! scale-modal-open? true))} "Edit Scale"]
+   [:span {:style {:margin-left 16
+                   :margin-right 16}}
+    "Labels  "
+    [:label [:input {:type "radio"
+                     :name "text"
+                     :checked (= :ratio @text-type)
+                     :on-change (fn [_] (reset! text-type :ratio))
+                     }
+             ] "Ratios"]
+    [:label [:input {:type "radio"
+                     :name "text"
+                     :checked (= :factors @text-type)
+                     :on-change (fn [_] (js/console.log "cick") (reset! text-type :factors))
+                     }] "Factors"]]
    (modal/modal @scale-modal-open?
                 (fn [] (reset! scale-modal-open? false))
                 [:div
