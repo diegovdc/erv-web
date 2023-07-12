@@ -1,10 +1,14 @@
 {:paths ["src"]
  :deps {thheller/shadow-cljs {:mvn/version "2.20.12"}
+        org.clojure/clojure {:mvn/version "1.11.1"}
+        org.clojure/clojurescript {:mvn/version "1.11.60"}
+        com.google.javascript/closure-compiler-unshaded {:mvn/version "v20221102"}
         reagent/reagent {:mvn/version "1.1.1"}
         metosin/reitit {:mvn/version "0.5.18"}
         re-frame/re-frame {:mvn/version "1.3.0-rc3"}
         re-frisk-remote/re-frisk-remote {:mvn/version "1.5.2"}
         org.clojure/math.combinatorics {:mvn/version "0.1.6"}
-        erv/erv {:local/root "/Users/diego/Music/code/erv"}
-        time-time/time-time {:local/root "/Users/diego/Music/code/time-tiem/"}
+        com.google.guava/guava {:mvn/version "32.0.0-jre"}
+        org.clojars.videco/erv {:local/root "/Users/diego/Music/code/erv"}
+        org.clojars.videco/time-time {:local/root "/Users/diego/Music/code/time-tiem/"}
         com.gfredericks/exact {:mvn/version "0.1.11"}}}
