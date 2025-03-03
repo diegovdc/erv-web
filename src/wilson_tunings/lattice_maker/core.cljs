@@ -1,8 +1,7 @@
 (ns wilson-tunings.lattice-maker.core
   (:require
    [clojure.string :as str]
-   [erv.lattice.v2 :refer [base-coords maybe-make-d1-connection
-                           ratios->lattice-data]]
+   [erv.lattice.v2 :refer [base-coords ratios->lattice-data]]
    [quil.core :as q :include-macros true]
    [reagent.core :as r]
    [wilson-tunings.modal :as modal]
@@ -31,8 +30,6 @@
 21/11
 2/1"))
 
-
-
 (defonce lattice-data (r/atom (ratios->lattice-data base-coords #_["1/1" "15/14" "5/4" "10/7" "3/2" "12/7"]
                                                     #_["1/1"
                                                        "80/77"
@@ -45,8 +42,8 @@
                                                        "12/7"
                                                        "20/11"]
                                                     (str/split
-                                                      @scale-string
-                                                      #"\s+"))))
+                                                     @scale-string
+                                                     #"\s+"))))
 
 (defonce text-type (r/atom :ratio))
 
@@ -114,7 +111,7 @@
                          (when (seq denom-factors*)
                            (str "/" denom-factors*)))
                     ratio))
-                 (+ (:x coords) 2) (- (:y coords) 0.4))))))
+                (+ (:x coords) 2) (- (:y coords) 0.4))))))
 
 (defn lattice []
   (r/create-class
@@ -123,7 +120,6 @@
                                  height js/window.innerHeight
                                  #_#_#_#_width 200
                                      height 200]
-
                              (q/defsketch lattice-tool
                                :title "Lattice Tool"
                                :host "lattice-canvas"
@@ -141,6 +137,7 @@
 
 (defn main
   []
+  (js/console.log "Lattice data" (clj->js @lattice-data))
   [:div
    [:h1 "Lattice Maker"]
    [:button {:on-click (fn [] (reset! scale-modal-open? true))} "Edit Scale"]
@@ -150,14 +147,11 @@
     [:label [:input {:type "radio"
                      :name "text"
                      :checked (= :ratio @text-type)
-                     :on-change (fn [_] (reset! text-type :ratio))
-                     }
-             ] "Ratios"]
+                     :on-change (fn [_] (reset! text-type :ratio))}] "Ratios"]
     [:label [:input {:type "radio"
                      :name "text"
                      :checked (= :factors @text-type)
-                     :on-change (fn [_] (js/console.log "cick") (reset! text-type :factors))
-                     }] "Factors"]]
+                     :on-change (fn [_] (js/console.log "cick") (reset! text-type :factors))}] "Factors"]]
    (modal/modal @scale-modal-open?
                 (fn [] (reset! scale-modal-open? false))
                 [:div

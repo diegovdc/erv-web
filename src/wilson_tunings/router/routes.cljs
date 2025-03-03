@@ -5,6 +5,7 @@
    [wilson-tunings.cps.core :as cps]
    [wilson-tunings.constant-structure-analyzer.core :as cs-analyzer]
    [wilson-tunings.lattice-maker.core :as lattice-maker]
+   [wilson-tunings.voice-leading.core :as voice-leading]
    [wilson-tunings.home :as home]
    [wilson-tunings.marwa :as marwa]
    [wilson-tunings.mos :as mos]
@@ -73,6 +74,12 @@
    ["/lattice-maker"
     {:name      :routes/lattice-maker
      :view      #'lattice-maker/main
+     :controllers
+     [{:start (fn [_params])
+       :stop  (fn [_params])}]}]
+   ["/voice-leading"
+    {:name      :routes/voice-leading
+     :view      #'voice-leading/main
      :controllers
      [{:start (fn [_params])
        :stop  (fn [_params])}]}]])
