@@ -40,7 +40,8 @@
      [:input {:type "text"
               :defaultValue "0 3 7"
               :on-change #(swap! local-state assoc :target-chord (-> % .-target .-value str/trim (str/split " ")))}]]
-    [:small "if the target chord has the intervals this can be left empty. Make sure that the target chord has the same amount of tones."]]
+    [:small {:style {:margin-left  8}} "IMPORTANT: Make sure that the target chord has the same amount of tones."]
+    [:small {:style {:margin-left  8}} "If the target chord is of the same type as the initial chord this can be left empty."]]
    [:button {:on-click (fn []
                          (let [{:keys [scale-size chord target-chord]} @local-state
                                voice-leading-data (->> (find-closest-chord scale-size
@@ -95,7 +96,7 @@
 (defn main []
   [:div
    [:h1 "Voice leading tool"]
-   [:p "Based and inspired by Dmitri Tymozcko's \"A Geometry of Music\""]
+   [:p "Based on and inspired by Dmitri Tymozcko's \"A Geometry of Music\""]
    [:p [:small "See below for the description of the tool the instructions."]]
    [:div {:style {:margin-bottom 40}}
     [:div {:style {:margin-bottom 20}} (form)]
@@ -109,7 +110,7 @@
     [:p "To try out your chord progressions you can use " [:a {:href "https://luphoria.com/xenpaper/"} "Xenpaper"] ", which uses the same chord syntax as the target chords produced by this calculator."]]
 
    [:div
-    [:h2 "Purpose a theory"]
-    [:p "The followig algorithm will provide the 15 closest target chords to any chord. The closeness of one chord to another is judged by the sum of the movements of each individual voice (positive if the voice moves to a higher pitch, and negative if it moves to a lower pitch). According to Tymozcko balanced chord progressions, where the voice movment is near 0 leads to smooth voice leading and if often a desired characteristic in common practie music styles (obviously this is a matter of taste)."]
-    [:p "For Tymozcko, a particular type of voice progression that is of interest is a progression where a chord leads to another chord of the same type. To facilitate finding such progressions one can leave the \"target chord\" field empty. Another chord progression of interest according to Tymozcko would be one where the intervals of a target chord are a permutation of the initial chord (i.e. in 12 edo a major chord (4 3 5) leading to a minor chord (3 4 5). So the user of this tool may find it interesting to try out such chords."]
-    [:p "Lastly for Tymozcko the best progressions for a given EDO usually revolve around chords whose intervals are almost an equal division of such EDO. So for example, in 12EDO (4 4 4) divides the scale in three equal parts, this chords like (4 3 5) and (3 4 5) which are near the symmetrical division will work very well. This of course poses a problem of what to do with prime EDOs. As Tymozcko only deals with 12EDO, then the question remains open. Regardless of this, the tool will provide the most balanced options for a give chord pair."]]])
+    [:h2 "Purpose and theory"]
+    [:p "The followig algorithm will provide the 15 closest target chords to any chord. The closeness of one chord to another is judged by the sum of the movements of each individual voice (positive if the voice moves to a higher pitch, and negative if it moves to a lower pitch). According to Tymozcko balanced chord progressions, where the voice movement is near 0 leads to smooth voice leading, which is often a desired characteristic in common practice music styles (obviously this is a matter of taste)."]
+    [:p "For Tymozcko, a particular type of chord progression that is of interest is one where a chord leads to another chord of the same type. To facilitate finding such progressions one can leave the \"target chord\" field empty. Another chord progression of interest according to Tymozcko would be one where the intervals of a target chord are a permutation of the initial chord (i.e. in 12EDO a major chord (4 3 5) leading to a minor chord (3 4 5)). So the user of this tool may find it interesting to try out such chords."]
+    [:p "Lastly for Tymozcko the best progressions for a given EDO usually revolve around chords whose intervals are almost an equal division of such EDO. So for example, in 12EDO (4 4 4) divides the scale in three equal parts, thus chords like (4 3 5) and (3 4 5) which are near the symmetrical division will work very well at producing balanced voice leading. This of course poses a problem of what to do with prime EDOs, and as Tymozcko only deals with 12EDO, then the question remains open. Regardless of this, the tool will provide the most balanced options for any give chord pair."]]])
