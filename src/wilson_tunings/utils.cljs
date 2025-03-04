@@ -16,3 +16,8 @@
 
 (defn y-space []
   [:div {:style {:height 16}}])
+
+(defn parse-integers [s]
+  (->> s
+       (re-seq #"-?\d+")  ;; Match optional '-' followed by digits
+       (map #(js/parseInt % 10))))

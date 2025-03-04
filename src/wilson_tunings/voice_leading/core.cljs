@@ -3,7 +3,8 @@
    [clojure.string :as str]
    [erv.edo.voice-leading :refer [find-closest-chord]]
    [reagent.core :as r]
-   [taoensso.timbre :as timbre]))
+   [taoensso.timbre :as timbre]
+   [wilson-tunings.utils :refer [parse-integers]]))
 
 (def ^:private local-state ;; just being quick and dirty
   (r/atom {:scale-size 12
@@ -16,6 +17,7 @@
     (->> (mapv #(when-not (= "" %) (js/Number %)))
          (remove nil?)))
 (->> @local-state)
+
 (defn form
   []
   [:div
@@ -27,19 +29,14 @@
    [:div [:label "Initial Chord"
           [:input {:type "text"
                    :defaultValue "0 4 7"
-                   :on-change #(swap! local-state assoc :chord (-> % .-target
-                                                                   .-value
-                                                                   str/trim
-                                                                   (str/split " ")
-                                                                   (->> (mapv (fn [degree] (when-not (= "" degree) (js/Number degree))))
-                                                                        (remove nil?))))}]]]
+                   :on-change #(swap! local-state assoc :chord (-> % .-target .-value parse-integers))}]]]
    [:div
     {:style {:margin-bottom 16}}
     [:label "Target Chord"
 
      [:input {:type "text"
               :defaultValue "0 3 7"
-              :on-change #(swap! local-state assoc :target-chord (-> % .-target .-value str/trim (str/split " ")))}]]
+              :on-change #(swap! local-state assoc :target-chord (-> % .-target .-value parse-integers))}]]
     [:small {:style {:margin-left  8}} "IMPORTANT: Make sure that the target chord has the same amount of tones."]
     [:small {:style {:margin-left  8}} "If the target chord is of the same type as the initial chord this can be left empty."]]
    [:button {:on-click (fn []
