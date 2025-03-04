@@ -11,12 +11,8 @@
            :chord [0 4 7]
            :target-chord [0 3 7]}))
 
-(-> "0 4 5 "
-    str/trim
-    (str/split " ")
-    (->> (mapv #(when-not (= "" %) (js/Number %)))
-         (remove nil?)))
-(->> @local-state)
+(comment
+  (->> @local-state))
 
 (defn form
   []
@@ -58,37 +54,37 @@
 (defn format-chord [chord]
   (str "[" (str/join ", " chord) "]"))
 
-(defn voice-leading-table
-  [voice-leading-data]
-
-  (when (seq voice-leading-data)
-    [:table
-     [:thead
-      [:tr
-       [:td "Initial Chord"]
-       [:td "Target Chord"]
-       [:td "Balance"]
-       [:td "Voice Movement"]
-       [:td "Initial Intervals"]
-       [:td "Target Intervals"]]]
-     (let [initial-chord* (:chord @local-state)]
-       (->> voice-leading-data
-            (remove (fn [{:keys [target-chord]}]
-                      (= (seq target-chord) (seq initial-chord*))))
-            (map (fn [{:keys [initial-chord
-                              target-chord
-                              total-movement
-                              voice-movement
-                              initial-intervals
-                              target-intervals]}]
-                   [:tbody {:key (concat initial-chord target-chord)}
-                    [:tr {:style {:border-bottom "1px solid black"}}
-                     [:td td-style (format-chord initial-chord)]
-                     [:td td-style (format-chord target-chord)]
-                     [:td td-style (str total-movement)]
-                     [:td td-style (format-chord voice-movement)]
-                     [:td td-style (format-chord initial-intervals)]
-                     [:td td-style (format-chord target-intervals)]]]))))]))
+(def voice-leading-table
+  (memoize
+   (fn [voice-leading-data]
+     (when (seq voice-leading-data)
+       [:table
+        [:thead
+         [:tr
+          [:td "Initial Chord"]
+          [:td "Target Chord"]
+          [:td "Balance"]
+          [:td "Voice Movement"]
+          [:td "Initial Intervals"]
+          [:td "Target Intervals"]]]
+        (let [initial-chord* (:chord @local-state)]
+          (->> voice-leading-data
+               (remove (fn [{:keys [target-chord]}]
+                         (= (seq target-chord) (seq initial-chord*))))
+               (map (fn [{:keys [initial-chord
+                                 target-chord
+                                 total-movement
+                                 voice-movement
+                                 initial-intervals
+                                 target-intervals]}]
+                      [:tbody {:key (concat initial-chord target-chord)}
+                       [:tr {:style {:border-bottom "1px solid black"}}
+                        [:td td-style (format-chord initial-chord)]
+                        [:td td-style (format-chord target-chord)]
+                        [:td td-style (str total-movement)]
+                        [:td td-style (format-chord voice-movement)]
+                        [:td td-style (format-chord initial-intervals)]
+                        [:td td-style (format-chord target-intervals)]]]))))]))))
 
 (defn main []
   [:div
