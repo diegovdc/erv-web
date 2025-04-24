@@ -2,7 +2,7 @@
   (:require
    [clojure.string :as str]
    [erv.edo.core :as edo]
-   [erv.marwa.core :as marwa]
+   [erv.marwa.v1 :as marwa]
    [erv.scale.core :as scale]
    [wilson-tunings.state :refer [state]]))
 
@@ -94,9 +94,9 @@
         base-perms (marwa/base-permutations (count sequence)
                                             gen-interval
                                             closing-interval)
-        scale-rotation (marwa/intervals->scale-2 scale-size sequence)
+        scale-rotation (marwa/intervals->scale scale-size sequence)
         rotated? (not= input-scale scale-rotation)
-        perms* (marwa/mos-permutations scale-size base-perms)
+        perms* (marwa/all-permutations scale-size base-perms)
         perms (if remove-unisons?
                 (remove #(some zero? (:scale %)) perms*)
                 perms*)]
