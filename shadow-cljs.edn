@@ -18,6 +18,9 @@
             :asset-path "."
             :modules {:browser-main {:entries [wilson-tunings.main]}}
             :build-hooks [(_build_hooks.browser/copy-index)]
+            :compiler-options {:source-map true
+                               :source-map-include-sources-content false
+                               :source-map-detail-level :all}
             :devtools {:devtools {:ignore-warnings true}
                        :preloads [re-frisk-remote.preload]
                        :before-load wilson-tunings.main/stop

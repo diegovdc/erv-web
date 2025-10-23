@@ -12,3 +12,4 @@ umd/
 /native
 /**/.DS_Store
 .cider-repl-history
+build/browser/browser-main.js.map

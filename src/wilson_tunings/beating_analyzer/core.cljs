@@ -26,9 +26,11 @@
  125/64
  2/1
 "}))
+
 (comment
   (-> @state
       (dissoc :beat-data)))
+
 (defn factors->hiccup
   "Outputs hiccup with factors in power notation"
   [factors]
