@@ -75,8 +75,8 @@
   [:button
    {:on-click
     (fn [_]
-      (scale/demo!
-       (:scale (edo/from-pattern scale))))}
+      #_(scale/demo-scale*
+         (:scale (edo/from-pattern scale))))}
    "Demo"])
 
 (defn permutations [state]
@@ -121,13 +121,13 @@
           [[:tr {:key "original"}
             [:td (str scale-rotation)]
             [:td (str sequence)]
-            [:td (demo-button scale-rotation)]
+            [:td #_(demo-button scale-rotation)]
             [:td (when rotated? "Original scale (rotated)")]]]
           (map (fn [{:keys [scale generator-seq]}]
                  [:tr {:key generator-seq}
                   [:td (str scale)]
                   [:td (str generator-seq)]
-                  [:td (demo-button scale)]
+                  [:td #_(demo-button scale)]
                   [:td]])
                perms))]]])))
 
