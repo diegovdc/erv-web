@@ -8,51 +8,71 @@
       rel="stylesheet"
     />
     <style>
-      * {
-        font-family: "Montserrat", sans-serif;
-        box-sizing: border-box;
-      }
-      .wt__mos-title {
-        margin-bottom: 10px;
-      }
-      .wt__credits {
-        font-size: 11px;
-        margin-bottom: 20px;
-      }
-      .wt__mos-form {
-        margin-bottom: 10px;
-      }
-      .wt__mos-form-input {
-        display: block;
-      }
-      .wt__mos-table-interval {
-        background-color: #eee;
-      }
-      .wt__mos-table-generate-secondary-mos-button {
-        margin-left: 2px;
-      }
-      .wt__mos-secondary-data h4 {
-        margin-bottom: 0;
-      }
-      .wt__mos-secondary-data-mos-description {
-        margin-top: 0;
-      }
-      .wt__mos-secondary-data-main {
-        margin-bottom: 20px;
-      }
-      .wt__mos-secondary-data-main h3 {
-        margin-bottom: 0;
-      }
-      .wt__mos-secondary-data-detail {
-        margin-bottom: 10px;
-      }
-      .wt__mos-secondary-data-detail-explanation {
-        margin-top: 0;
-        margin-bottom: 0;
-      }
-      .wt__mos-secondary-data-button.selected {
-        background-color: #ffc107;
-      }
+     * {
+       font-family: "Montserrat", sans-serif;
+       box-sizing: border-box;
+     }
+     .wt__mos-title {
+       margin-bottom: 10px;
+     }
+     .wt__credits {
+       font-size: 11px;
+       margin-bottom: 20px;
+     }
+     .wt__mos-form {
+       margin-bottom: 10px;
+     }
+     .wt__mos-form-input {
+       display: block;
+     }
+     .wt__mos-table-interval {
+       background-color: #eee;
+     }
+     .wt__mos-table-generate-secondary-mos-button {
+       margin-left: 2px;
+     }
+     .wt__mos-secondary-data h4 {
+       margin-bottom: 0;
+     }
+     .wt__mos-secondary-data-mos-description {
+       margin-top: 0;
+     }
+     .wt__mos-secondary-data-main {
+       margin-bottom: 20px;
+     }
+     .wt__mos-secondary-data-main h3 {
+       margin-bottom: 0;
+     }
+     .wt__mos-secondary-data-detail {
+       margin-bottom: 10px;
+     }
+     .wt__mos-secondary-data-detail-explanation {
+       margin-top: 0;
+       margin-bottom: 0;
+     }
+     .wt__mos-secondary-data-button.selected {
+       background-color: #ffc107;
+     }
+
+     .beating-analyzer__table,
+     .beating-analyzer__table th,
+     .beating-analyzer__table td {
+       border: 1px solid black;
+       border-collapse: collapse;
+     }
+     
+
+     .beating-analyzer__table thead th {
+       position: sticky; /* Makes the header cells sticky */
+       top: 0;
+       background: #fff; /* Prevents content from showing through */
+       z-index: 1;       /* Ensures the header stays above the scrolling rows */
+     }
+
+     .beating-analyzer__table th {
+       min-width: 70px;
+       padding: 0 4px;
+     }
     </style>
   </head>
   <body>

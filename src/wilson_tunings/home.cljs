@@ -18,6 +18,7 @@
    [:a {:style href-style :href (href :routes/cps-colors)} "CPS Color (experiment)"]
    [:a {:style href-style :href (href :routes/constant-structure-analyzer)} "Constant Structure Analyzer"]
    [:a {:style href-style :href (href :routes/lattice-maker)} "Lattice Maker"]
+   [:a {:style href-style :href (href :routes/beating-analyzer)} "Beating Analyzer"]
    [:div {:style {:margin-top 40}}
     [:h2 "Non-wilsonian tools"]
     [:a {:style href-style :href (href :routes/voice-leading)} "Voice Leading Calculator"]]])

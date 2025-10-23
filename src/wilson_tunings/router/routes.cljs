@@ -6,6 +6,7 @@
    [wilson-tunings.constant-structure-analyzer.core :as cs-analyzer]
    [wilson-tunings.lattice-maker.core :as lattice-maker]
    [wilson-tunings.voice-leading.core :as voice-leading]
+   [wilson-tunings.beating-analyzer.core :as beating-analyzer]
    [wilson-tunings.home :as home]
    [wilson-tunings.marwa :as marwa]
    [wilson-tunings.mos :as mos]
@@ -80,6 +81,12 @@
    ["/voice-leading"
     {:name      :routes/voice-leading
      :view      #'voice-leading/main
+     :controllers
+     [{:start (fn [_params])
+       :stop  (fn [_params])}]}]
+   ["/beating-analyzer"
+    {:name      :routes/beating-analyzer
+     :view      #'beating-analyzer/main
      :controllers
      [{:start (fn [_params])
        :stop  (fn [_params])}]}]])
