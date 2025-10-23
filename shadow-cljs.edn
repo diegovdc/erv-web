@@ -18,6 +18,7 @@
             :asset-path "."
             :modules {:browser-main {:entries [wilson-tunings.main]}}
             :build-hooks [(_build_hooks.browser/copy-index)]
-            :devtools {:preloads [re-frisk-remote.preload]
+            :devtools {:devtools {:ignore-warnings true}
+                       :preloads [re-frisk-remote.preload]
                        :before-load wilson-tunings.main/stop
                        :after-load wilson-tunings.main/start}}}}
