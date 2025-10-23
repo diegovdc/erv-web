@@ -66,18 +66,18 @@
      :controllers
      [{:start (fn [_params])
        :stop  (fn [_params])}]}]
-   ["/constant-structure-analyzer"
-    {:name      :routes/constant-structure-analyzer
-     :view      #'cs-analyzer/main
-     :controllers
-     [{:start (fn [_params])
-       :stop  (fn [_params])}]}]
-   ["/lattice-maker"
-    {:name      :routes/lattice-maker
-     :view      #'lattice-maker/main
-     :controllers
-     [{:start (fn [_params])
-       :stop  (fn [_params])}]}]
+   #_["/constant-structure-analyzer"
+      {:name      :routes/constant-structure-analyzer
+       :view      #'cs-analyzer/main
+       :controllers
+       [{:start (fn [_params])
+         :stop  (fn [_params])}]}]
+   #_["/lattice-maker"
+      {:name      :routes/lattice-maker
+       :view      #'lattice-maker/main
+       :controllers
+       [{:start (fn [_params])
+         :stop  (fn [_params])}]}]
    ["/voice-leading"
     {:name      :routes/voice-leading
      :view      #'voice-leading/main
