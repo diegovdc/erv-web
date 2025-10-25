@@ -1,12 +1,16 @@
 (ns wilson-tunings.beating-analyzer.core
   (:require
+   [cljs.pprint :as pprint]
    [clojure.string :as str]
    [erv.beating-analyzer.v1 :as ba]
    [erv.utils.exact :refer [parse-ratios]]
    [erv.utils.exact :as eu]
-   [reagent.core :as r]))
+   [reagent.core :as r]
+   [wilson-tunings.synthesis :as wt.s]
+   [wilson-tunings.beating-analyzer.synths :as bas]))
 
-(defonce state (r/atom {:ratios "67/64
+(defonce state (r/atom {:synths {}
+                        :ratios "67/64
  279/256
  9/8
  75/64
@@ -26,6 +30,47 @@
  125/64
  2/1
 "}))
+(comment
+  (-> @state :synths)
+
+  (swap! state update :synths dissoc {:root-hz 32, :degree-1 2, :ratio-2-partial "3", :degree-2 16, :beat-freq.ratio "0", :beat-freq.factors {:numer [], :denom []}, :root "B0+62", :ratio-1 "9/8", :ratio-1-partial "5", :period 0, :ratio-2 "15/8", :beat-freq.hz 0}))
+
+(defn toggle-harmonic-pair-synth
+  [{:as data-k
+    :keys [root-hz
+           ratio-1
+           ratio-1-partial
+           ratio-2
+           ratio-2-partial]}]
+  (let [data-k* (::id data-k)
+        synths (get-in @state [:synths data-k*])]
+    (if synths
+      (do
+        (doseq [synth synths] (bas/release synth))
+        (swap! state update :synths dissoc data-k*))
+
+      (let [env {:attack 102 :decay 5 :sustain 0.8 :release 102}
+            synths [(bas/play (bas/make-synth {:freq (* root-hz
+                                                        (eu/->native ratio-1)
+                                                        (eu/->native ratio-1-partial))
+                                               :env env
+                                               :db -32}))
+                    (bas/play (bas/make-synth {:freq (* root-hz
+                                                        (eu/->native ratio-2)
+                                                        (eu/->native ratio-2-partial))
+                                               :env env
+                                               :db -32}))]]
+        (swap! state update :synths assoc data-k* synths))))
+
+  (println root-hz
+           (eu/->native ratio-1)
+           (eu/->native ratio-1-partial))
+  (println (* root-hz
+              (eu/->native ratio-1)
+              (eu/->native ratio-1-partial))
+           (* root-hz
+              (eu/->native ratio-2)
+              (eu/->native ratio-2-partial))))
 
 (comment
   (-> @state
@@ -219,40 +264,71 @@
         f [1]]
     (non-empty-columns [[e f e e]
                         [f f e e]])))
+
+(def get-sorted-data-by-degree-pairs
+  (memoize
+   (fn [beat-data]
+     (->> beat-data
+          (group-by (comp (juxt :degree-1 :degree-2 :period)))
+          (sort-by (comp (juxt #(nth % 2 nil) first second) first))))))
+
+(defn keep-row?
+  [filters-state deg-pair-k]
+  (and (not (false? (get-in filters-state [:degrees (first deg-pair-k)])))
+       (not (false? (get-in filters-state [:degrees (second deg-pair-k)])))
+       (not (false? (get-in filters-state [:periods (nth deg-pair-k 2)])))))
+
+(defn make-beat-cell [state-data data-by-hz hz]
+  (let [data (data-by-hz hz)
+        is-empty? (nil? (seq data))
+        id (str (str/join (eu/make-readable data)) hz)]
+    (with-meta
+      [:td {:key id
+            :style {:white-space "nowrap"}}
+       (->> data
+            (map (fn [{:as pair-data
+                       :keys [ratio-1-partial ratio-2-partial]}]
+                   (let [id (::id pair-data)]
+                     [:span {:key id
+                             :style {:border "1px solid orange"
+                                     :background-color (if (get-in state-data [:synths id]) "cyan" "transparent")}
+                             :on-click (fn [] (toggle-harmonic-pair-synth pair-data))}
+                      (str (eu/make-readable ratio-1-partial)
+                           ","
+                           (eu/make-readable ratio-2-partial))]))))]
+      {:empty? is-empty?})))
+
+(defn hidden-column?
+  [state-data hz]
+  (false? (get-in state-data [:filters :beat-freqs hz])))
+
+(defn row-not-empty?
+  [beat-cells]
+  (some #(not (:empty? (meta %))) beat-cells))
+
+(defn maybe-make-row
+  [state-data beat-freq-columns [deg-pair pair-beat-data]]
+  (let [data-by-hz (group-by :beat-freq.hz pair-beat-data)
+        ;; the beating harmonic pair at the given beating frequency
+        beat-cells (into [] (comp (remove #(hidden-column? state-data (:beat-freq.hz %)))
+                                  (map #(make-beat-cell state-data data-by-hz (:beat-freq.hz %))))
+                         beat-freq-columns)
+        root-label (str (nth deg-pair 2) "@" (:root-hz (first pair-beat-data)) "hz")
+        deg-pair-label (str/join "," (take 2 deg-pair))]
+    (when (row-not-empty? beat-cells)
+      (into [:tr {:key (str root-label "-" deg-pair-label)}
+             [:td root-label]
+             [:td deg-pair-label]]
+            beat-cells))))
 (defn table
   [beat-data]
-  (let [data-by-deg-pairs (group-by (comp (juxt :degree-1 :degree-2 :period)) beat-data)
-        beat-freqs (get-beat-freqs beat-data)
-        state* @state
+  (let [data-by-deg-pairs (get-sorted-data-by-degree-pairs beat-data)
+        beat-freq-column-data (get-beat-freqs beat-data)
+        state-data @state
         rows (->> data-by-deg-pairs
-                  (sort-by (comp (juxt #(nth % 2 nil) first second) first))
-                  (keep
-                   (fn [[deg-pair pair-beat-data]]
-                     (when (and (not (false? (get-in state* [:filters :degrees (first deg-pair)])))
-                                (not (false? (get-in state* [:filters :degrees (second deg-pair)])))
-                                (not (false? (get-in state* [:filters :periods (nth deg-pair 2)]))))
-                       (let [data-by-hz (group-by :beat-freq.hz pair-beat-data)
-                             beating-harmonics-at-beat-hz-index
-                             (keep
-                              (fn [{hz :beat-freq.hz}]
-                                (when-not (false? (get-in state* [:filters :beat-freqs hz]))
-                                  (let [content (->> (data-by-hz hz)
-                                                     (map (juxt :ratio-1-partial :ratio-2-partial)))]
-                                    (with-meta
-                                      [:td {:id hz :key hz :style {:white-space "nowrap"}}
-                                       (->> content
-                                            (map #(str/join "," %))
-                                            (interpose [:span {:style {:padding-left 10}}]))]
-                                      {:empty? (nil? (seq content))}))))
-                              beat-freqs)
-                             root-label (str (nth deg-pair 2) "@" (:root-hz (first pair-beat-data)) "hz")
-                             deg-pair-label (str/join "," (take 2 deg-pair))]
-                         (when (and (some (fn [td] (not (:empty? (meta td))))
-                                          beating-harmonics-at-beat-hz-index))
-                           (into [:tr {:key (str root-label "-" deg-pair-label)}
-                                  [:td root-label]
-                                  [:td deg-pair-label]]
-                                 beating-harmonics-at-beat-hz-index)))))))
+                  (filter #(keep-row? (:filters state-data) (first %)))
+                  ;; NOTE `maybe-make-row` may return `nil` when all cells are empty (i.e. can occur when filtering columns)
+                  (keep (fn [kv-data] (maybe-make-row state-data beat-freq-column-data kv-data))))
         header (thead (@state :beat-data))
         non-empty-cols (non-empty-columns rows)
         header* (mapv #(nth header %) non-empty-cols)
@@ -282,15 +358,17 @@
                                    (-> ev .-target .-value)))}]
    [:button {:on-click (fn []
                          (swap! state assoc :beat-data
-                                (ba/get-beat-data (eu/->exact 2)
-                                                  (eu/->exact 1)
-                                                  (map eu/->exact (range 1 6))
-                                                  (parse-ratios (:ratios @state)))))}
+                                (map-indexed #(assoc %2 ::id %1)
+                                             (ba/get-beat-data (eu/->exact 2)
+                                                               (eu/->exact 1)
+                                                               (map eu/->exact (range 1 6))
+                                                               (parse-ratios (:ratios @state))))))}
     "Analyze Scale Beating"]])
 
 (defn main []
   (let [beat-data (@state :beat-data)]
     [:div [:h1 "Beating Analyzer"]
+     [:button {:on-click (fn [] (wt.s/init!))} "Start Tone"]
      (ratios-input)
      (when (seq beat-data)
        [:div {:style {:margin-bottom 16}}
