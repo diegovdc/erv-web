@@ -1,5 +1,5 @@
 {:deps true
- :dev-http {5000 "build/browser"}
+ :dev-http {4999 "build/browser"}
  :nrepl {:port 8777}
 
  :builds

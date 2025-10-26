@@ -4,10 +4,12 @@
    ["tone" :as Tone]
    [taoensso.timbre :as timbre]))
 
+(defonce inited? (atom false))
 (defn init! []
-  (println "initing tonejs")
-  (set! (.-Tone js/window) Tone)
-  (Tone/start))
+  (when-not @inited?
+    (set! (.-Tone js/window) Tone)
+    (Tone/start)
+    (reset! inited? true)))
 
 ;;;;;;;;;;;;;;
 ;; Playground

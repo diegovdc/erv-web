@@ -31,7 +31,8 @@
  2/1
 "}))
 (comment
-  (-> @state :synths)
+  (doseq [s (flatten (vals (-> @state :synths)))]
+    (bas/release s))
 
   (swap! state update :synths dissoc {:root-hz 32, :degree-1 2, :ratio-2-partial "3", :degree-2 16, :beat-freq.ratio "0", :beat-freq.factors {:numer [], :denom []}, :root "B0+62", :ratio-1 "9/8", :ratio-1-partial "5", :period 0, :ratio-2 "15/8", :beat-freq.hz 0}))
 
@@ -357,6 +358,7 @@
                             (swap! state assoc :ratios
                                    (-> ev .-target .-value)))}]
    [:button {:on-click (fn []
+                         (wt.s/init!)
                          (swap! state assoc :beat-data
                                 (map-indexed #(assoc %2 ::id %1)
                                              (ba/get-beat-data (eu/->exact 2)
@@ -368,7 +370,6 @@
 (defn main []
   (let [beat-data (@state :beat-data)]
     [:div [:h1 "Beating Analyzer"]
-     [:button {:on-click (fn [] (wt.s/init!))} "Start Tone"]
      (ratios-input)
      (when (seq beat-data)
        [:div {:style {:margin-bottom 16}}
