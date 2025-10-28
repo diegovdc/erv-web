@@ -7,8 +7,15 @@
   (play [this])
   (release [this])
   (dispose [this])
-  (set-freq [this freq])
-  (set-db [this db]))
+  ;; (set-freq [this freq])
+  (set-db [this db])
+  (ramp-db [this db]))
+
+(defprotocol IAdditiveSynth
+  (set-partial-db [this partial-index db])
+  (set-partial-amp [this partial-index db])
+  (ramp-partial-db [this partial-index db ramp-dur])
+  (ramp-partial-amp [this partial-index db ramp-dur]))
 
 (defrecord Synth [^js osc ^js env ^js amp freq db rel dispose-on-release?]
   ISynth
@@ -32,13 +39,72 @@
 
     this)
 
-  (set-freq [this new-freq]
-    (set! (.-frequency osc) new-freq)
-    (assoc this :freq new-freq))
+  #_(set-freq [this new-freq]
+              (set! (.-frequency osc) new-freq)
+              (assoc this :freq new-freq))
 
   (set-db [this new-db]
+    (set! (.. amp -volume -value) new-db)
+    (assoc this :db new-db))
+
+  (ramp-db [this new-db]
     (.rampTo (.-volume amp) new-db 2)
     (assoc this :db new-db)))
+
+(defrecord AdditiveSynth [partial-oscs ^js add-node ^js env ^js amp freq db rel dispose-on-release?]
+  ISynth
+  (play [this]
+    (if (.-disposed add-node)
+      (timbre/warn "Synth already disposed")
+      (.triggerAttack env))
+    this)
+
+  (release [this]
+    (.triggerRelease env)
+    (assoc this :disposed? dispose-on-release?)
+    (when dispose-on-release?
+      (js/setTimeout
+       (fn [] (.dispose add-node))
+       (+ 100 (* 1000 rel))))
+    this)
+
+  (dispose [this]
+    (.dispose add-node)
+    this)
+
+  #_(set-freq [this new-freq]
+              (set! (.-frequency osc) new-freq)
+              (assoc this :freq new-freq))
+
+  (set-db [this new-db]
+    (set! (.. amp -volume -value) new-db)
+    (assoc this :db new-db))
+
+  (ramp-db [this new-db]
+    (.rampTo (.-volume amp) new-db 2)
+    (assoc this :db new-db))
+
+  IAdditiveSynth
+  (ramp-partial-db [this partial-index db ramp-dur]
+    (when (zero? partial-index)
+      (timbre/warn "`partial-index` start at one"))
+    (if-let [partial ^js (nth partial-oscs (dec partial-index) nil)]
+      (.rampTo (.-volume partial) db ramp-dur)
+      (timbre/warn "Partial not found"))
+    this)
+  (ramp-partial-amp [this partial-index amp ramp-dur]
+    (ramp-partial-db this partial-index (Tone/gainToDb amp) ramp-dur))
+
+  (set-partial-db [this partial-index db]
+    (when (zero? partial-index)
+      (timbre/warn "`partial-index` start at one"))
+    (if-let [partial ^js (nth partial-oscs (dec partial-index) nil)]
+      (set! (.. partial -volume -value) db)
+      (timbre/warn "Partial not found"))
+    this)
+
+  (set-partial-amp [this partial-index amp]
+    (set-partial-db this partial-index (Tone/gainToDb amp))))
 
 (defn connect-and-output
   "Sets up a signal chain linearly connecting the given nodes."
@@ -48,8 +114,20 @@
       (.connect node-1 node-2))
     (.toDestination (last signal-chain))))
 
-  ;; More flexible constructor
-(defn make-synth
+(defn add-signals
+  "Adds a sequence of signals"
+  [add-node signals]
+  (doseq [sig signals]
+    (.connect sig add-node 0 0)))
+
+(comment
+  (def s (.. (Tone/Oscillator. {:freq 200 :db -20})
+             (toDestination)))
+  (.play s)
+  (. s))
+
+;; More flexible constructor
+(defn make-sine
   [& {:keys [freq db type env]
       :or {freq 440
            db -12
@@ -66,8 +144,49 @@
     (.start osc)
 
     (->Synth osc env* amp freq db rel true)))
+(comment
+  (def s (make-sine))
+  (play s)
+  (ramp-db s -0)
+  (release s))
 
-(def s (make-synth))
-(play s)
-(set-db s -0)
-(release s)
+(defn make-additive
+  [& {:keys [freq partial-amps db env]
+      :or {freq 440 db -12}}]
+  (let [default-envelope {:attack 0.01 :decay 5 :sustain 0.8 :release 2}
+        env-params (merge default-envelope env)
+        rel (:release env-params)
+        env* (Tone/AmplitudeEnvelope. (clj->js env-params))
+        amp (Tone/Volume. db)
+        add-node (Tone/Add.)
+        partial-oscs (map-indexed (fn [partial amp]
+                                    (Tone/Oscillator.
+                                     (clj->js {:frequency (* (inc partial) freq)
+                                               :type "sine"
+                                               :volume (Tone/gainToDb amp)})))
+                                  partial-amps)]
+    (add-signals add-node partial-oscs)
+
+    (connect-and-output [add-node amp env*])
+
+    (doseq [osc partial-oscs]
+      (.start osc))
+
+    (->AdditiveSynth partial-oscs add-node env* amp freq db rel true)))
+
+(defn additive-synth?
+  [x]
+  (instance? AdditiveSynth x))
+
+(comment
+
+  (Tone/gainToDb 0)
+  (def s2 (make-additive {:partial-amps [1 0.4 0.6 0.5 0.3 0.3]
+                          :env {:attack 20}}))
+  (-> s2 type)
+  (instance? AdditiveSynth s2)
+  (play s2)
+  (ramp-db s2 -0)
+  (release s2)
+  (set-partial-amp s2 1 0)
+  (set-partial-db s2 7 -60))

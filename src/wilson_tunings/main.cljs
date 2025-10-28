@@ -46,8 +46,8 @@
   (println "Restarting"))
 
 (defn ^:export init [opts]
+  (rf/dispatch [:initialize])
   (let [element-id
         (-> opts js->clj
             (get "elementId" "wilson-tunings-calculator"))]
     (start element-id)))
-
