@@ -1,7 +1,9 @@
 (ns wilson-tunings.beating-analyzer.core
   (:require
    [clojure.string :as str]
+   [com.gfredericks.exact :as e]
    [erv.beating-analyzer.v1 :as ba]
+   [erv.cps.core :refer [format]]
    [erv.utils.exact :refer [parse-ratios]]
    [erv.utils.exact :as eu]
    [re-frame.core :as rf]
@@ -188,7 +190,7 @@
     (->> (frequencies factors)
          (sort-by first)
          (map (fn [[factor power]] [:span
-                                    {:key (str factors (eu/make-readable factor) power)}
+                                    {:key (str (eu/make-readable factors) (eu/make-readable factor) power)}
                                     (eu/make-readable factor)
                                     [:sup power]])))))
 
@@ -209,6 +211,7 @@
         filters @(rf/subscribe [::filters])]
     [:div
      [:h3 "Beat Frequencies filter"]
+     [:p "Note: no filters are selected by default. To populate the table select something. Using \"Select All\" can slow down the page."]
      [:div {:style {:display "flex" :gap 8 :flex-wrap "wrap"}}
       [:button
        {:on-click (fn [] (update-all-filters beat-hz :beat-freqs false))}
@@ -224,7 +227,7 @@
                         :style {:width 200
                                 :flex-shrink 0}}
                 [:input {:type :checkbox
-                         :checked (get-in filters [:beat-freqs id] true)
+                         :checked (get-in filters [:beat-freqs id] false)
                          :on-change (fn [ev]
                                       (rf/dispatch [::update-filter
                                                     :beat-freqs
@@ -300,10 +303,51 @@
           (keep (fn [bf]
                   (let [hz (:beat-freq.hz bf)]
                     (when-not (false? (get-in filters [:beat-freqs hz]))
-                      [:th {:key hz} hz "hz " "(" (:instances bf) ")"
+                      [:th {:key hz} (str hz "hz " "(" (:instances bf) ")")
                        [:br]
                        (beat-factors-hiccup  (:beat-freq.factors bf))])))
                 beat-freqs))))
+(rf/reg-sub
+ ::beat-freqs-by-hz
+ :<- [::beat-freqs]
+ (fn [beat-freqs]
+   (reduce
+    (fn [acc {hz :beat-freq.hz
+              :as data}]
+      (assoc acc hz data))
+    {}
+    beat-freqs)))
+(comment
+  @(rf/subscribe [::beat-freqs-by-hz])
+  @(rf/subscribe [::thead-data]))
+
+(rf/reg-sub
+ ::thead-data
+ :<- [::beat-freqs-by-hz]
+ :<- [::non-empty-columns]
+ (fn [[beat-freqs-by-hz columns-hz]]
+   {:period-label "Period"
+    :degrees-label "Degrees"
+    :hz-columns (->> columns-hz sort
+                     (map (fn [hz]
+                            (let [bf (beat-freqs-by-hz hz)]
+                              [:th {:key hz}
+                               (str hz "hz " "(" (:instances bf) ")")
+                               [:br]
+                               (beat-factors-hiccup  (:beat-freq.factors bf))]))))})
+ #_(let [beat-freqs @(rf/subscribe [::beat-freqs])
+         filters @(rf/subscribe [::filters])]
+     (into [:tr
+            {} ;; do not remove this, even if unstyled, is necessary for the column filtering to take place in the `table` component. Otherwise the vector size will differ from that of the rows.
+            [:th "Period"]
+            [:th "Degrees"]]
+           (keep (fn [bf]
+                   (let [hz (:beat-freq.hz bf)]
+                     (when-not (false? (get-in filters [:beat-freqs hz]))
+                       [:th {:key hz} hz "hz " "(" (:instances bf) ")"
+                        [:br]
+                        (beat-factors-hiccup  (:beat-freq.factors bf))])))
+                 beat-freqs))))
 
 (defn non-empty-columns [rows]
   (let [col-indexes (->> rows
@@ -362,7 +406,7 @@
 
 (defn hidden-column?
   [beat-freqs-filter hz]
-  (false? (beat-freqs-filter hz)))
+  (not (beat-freqs-filter hz)))
 
 (defn row-not-empty?
   [beat-cells]
@@ -377,7 +421,10 @@
                          beat-freq-columns)
         root-label (str (nth deg-pair 2) "@" (:root-hz (first pair-beat-data)) "hz")
         synths @(rf/subscribe [::synths])
-        deg-pair-label (str/join "," (take 2 deg-pair))
+        {:keys [degree-1 ratio-1 degree-2 ratio-2]} (first pair-beat-data)
+        deg-pair-label (format "%s(%s),%s(%s)"
+                               degree-1 (eu/make-readable ratio-1)
+                               degree-2 (eu/make-readable ratio-2))
         synth-id [:degree-pair (::id (first pair-beat-data))]]
     (when (row-not-empty? beat-cells)
       (into [:tr {:key (str root-label "-" deg-pair-label)}
@@ -393,6 +440,100 @@
                                     (first pair-beat-data)]))}
                deg-pair-label]]]
             beat-cells))))
+
+(defn make-beat-cell-data
+  [synths data-by-hz hz]
+  (let [data (data-by-hz hz)
+        is-empty? (nil? (seq data))
+        id (str (str/join (eu/make-readable data)) hz)]
+    {:id id
+     :beat-hz hz
+     :is-empty? is-empty?
+     :pairs (->> data
+                 (map (fn [{:as pair-data
+                            :keys [ratio-1-partial ratio-2-partial]}]
+                        {:id (::id pair-data)
+                         :pair-data pair-data
+                         :playing? (get synths id)
+                         :label (str (eu/make-readable ratio-1-partial)
+                                     ","
+                                     (eu/make-readable ratio-2-partial))})))}))
+
+(defn row-not-empty?2
+  [beat-cells]
+  (some #(not (:is-empty? %)) beat-cells))
+#_(row-not-empty?2 [{:id "1.875", :is-empty? true, :pairs ()}])
+
+(defn maybe-make-row-data
+  [beat-freqs-filter beat-freq-columns synths [deg-pair pair-beat-data]]
+  (let [data-by-hz (group-by :beat-freq.hz pair-beat-data)
+        ;; the beating harmonic pair at the given beating frequency
+        beat-cells (into [] (comp (remove #(hidden-column? beat-freqs-filter (:beat-freq.hz %)))
+                                  (map #(make-beat-cell-data synths data-by-hz (:beat-freq.hz %))))
+                         beat-freq-columns)
+        root-label (str (nth deg-pair 2) "@" (:root-hz (first pair-beat-data)) "hz")
+        {:keys [degree-1 ratio-1 degree-2 ratio-2]} (first pair-beat-data)
+        deg-pair-label (format "%s,%s (%s,%s)"
+                               degree-1 degree-2
+                               (eu/make-readable ratio-1)
+                               (eu/make-readable ratio-2))
+        synth-id [:degree-pair (::id (first pair-beat-data))]]
+    (when (row-not-empty?2 beat-cells)
+      {:row-key (str root-label "-" deg-pair-label)
+       :root-label root-label
+       :synth-id synth-id
+       :beat-cells beat-cells
+       :deg-pair-label deg-pair-label
+       :pair-beat-data pair-beat-data})))
+
+(rf/reg-sub
+ ::rows-data
+ :<- [::sorted-data-by-degree-pairs]
+ :<- [::beat-freqs]
+ :<- [::filters]
+ :<- [::synths]
+ (fn [[data-by-deg-pairs beat-freq-column-data filters synths] _]
+   (let [beat-freqs-filter (:beat-freqs filters {})
+         degrees-filter (:degrees filters {})
+         periods-filter (:periods filters {})]
+     (->> data-by-deg-pairs
+          (filter #(keep-row? degrees-filter periods-filter (first %)))
+           ;; NOTE `maybe-make-row` may return `nil` when all cells are empty (i.e. can occur when filtering columns)
+          (keep (fn [kv-data] (maybe-make-row-data beat-freqs-filter beat-freq-column-data synths kv-data)))))))
+#_(defn non-empty-columns [rows]
+    (let [col-indexes (->> rows
+                           (drop-while nil?)
+                           first
+                           count
+                           range)]
+      (reduce
+       (fn [acc i]
+         (let [is-empty? (reduce
+                          (fn [is-empty? row]
+                            (let [td (nth row i)]
+                              (and is-empty? (:empty? (meta td)))))
+                          true
+                          rows)]
+           (if is-empty? acc (conj acc i))))
+       []
+       col-indexes)))
+
+(rf/reg-sub
+ ::non-empty-columns
+ :<- [::rows-data]
+ (fn [rows-data]
+   (->> rows-data
+        (mapcat :beat-cells)
+        (mapcat :pairs)
+        (map (comp :beat-freq.hz :pair-data))
+        set)))
+
+(comment
+  (->> @(rf/subscribe [::rows-data])
+       (mapcat :beat-cells)
+       (mapcat :pairs)
+       first)
+  @(rf/subscribe [::non-empty-columns]))
 
 (defn table
   []
@@ -414,6 +555,64 @@
       [:table {:class "beating-analyzer__table"}
        [:thead header*]
        [:tbody rows*]])))
+
+(defn thead2
+  [thead-data]
+  (into [:tr
+         {} ;; do not remove this, even if unstyled, is necessary for the column filtering to take place in the `table` component. Otherwise the vector size will differ from that of the rows.
+         [:th (:period-label thead-data)]
+         [:th (:degrees-label thead-data)]]
+        (:hz-columns thead-data)))
+
+(defn make-cell
+  [synths
+   non-empty-columns
+   {:keys [id beat-hz pairs]}]
+  (when (non-empty-columns beat-hz)
+    [:td {:key id
+          :style {:white-space "nowrap"}}
+     (->> pairs
+          (map (fn [{:keys [id label pair-data]}]
+                 [:span {:key id
+                         :style {:border "1px solid orange"
+                                 :cursor "pointer"
+                                 :background-color (if (get synths id) "cyan" "transparent")}
+                         :on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
+                  label])))]))
+
+(defn make-rows
+  [synths
+   non-empty-columns
+   {:keys [row-key
+           root-label
+           synth-id
+           pair-beat-data
+           deg-pair-label
+           beat-cells]}]
+  (into [:tr {:key row-key}
+         [:td root-label]
+         [:td
+          [:span {:style {:border "1px solid orange"
+                          :cursor "pointer"
+                          :background-color (if (get synths synth-id) "cyan" "transparent")}
+                  :on-click (fn []
+                              (rf/dispatch
+                               [::toggle-degree-pair-synth
+                                synth-id
+                                (first pair-beat-data)]))}
+           deg-pair-label]]]
+        (keep #(make-cell synths non-empty-columns %) beat-cells)))
+
+(defn table2
+  []
+  (let [thead-data @(rf/subscribe [::thead-data])
+        synths @(rf/subscribe [::synths])
+        rows-data @(rf/subscribe [::rows-data])
+        non-empty-columns @(rf/subscribe [::non-empty-columns])]
+    [:table {:class "beating-analyzer__table"}
+     [:thead (thead2 thead-data)]
+     [:tbody (map #(make-rows synths non-empty-columns %) rows-data)]]))
+
 (defn ratios-input []
   (let [ratios @(rf/subscribe [::ratios])
         partials @(rf/subscribe [::partials])]
@@ -423,7 +622,8 @@
                  :value ratios
                  :on-change (fn [ev]
                               (rf/dispatch [::set-ratios (-> ev .-target .-value)]))}]
-     [:div [:label [:b "Partials to consider: "]
+     [:div [:label
+            [:b "Partials to consider: "]
             [:input {:type "text"
                      :defaultValue (str/join ", " partials)
                      :on-blur (fn [ev]
@@ -462,30 +662,57 @@
    (->> db ::synths vals flatten (filter bas/additive-synth?))))
 
 (comment
-  @(rf/subscribe [::additive-synths]))
+  @(rf/subscribe [::additive-synths])
+
+  @(rf/subscribe [::partial-amps]))
+
+(rf/reg-event-fx
+ ::update-total-partial-amps
+ (fn [{:keys [db]} [_ new-total-partials]]
+   (let [partial-amps (::partial-amps db)
+         total-partials (count partial-amps)
+         diff (int (- new-total-partials total-partials))
+         new-partial-amps (cond
+                            (zero? diff) partial-amps
+                            (pos? diff) (into partial-amps (repeat diff 0))
+                            :else (into [] (take (+ total-partials diff) partial-amps)))]
+
+     {:db (assoc db ::partial-amps new-partial-amps)})))
 
 (defn synth-controls []
   (let [partial-amps @(rf/subscribe [::partial-amps])
-        synths @(rf/subscribe [::additive-synths])]
+        synths @(rf/subscribe [::additive-synths])
+        partials @(rf/subscribe [::partials])]
     [:div
-     (map-indexed (fn [i amp]
-                    (let [partial (inc i)]
-                      [:label {:key i}
-                       [:input {:type "range"
-                                :min 0
-                                :max 1
-                                :default-value amp
-                                :step 0.01
-                                :style {:writing-mode "sideways-lr"}
-                                :on-change (fn [ev]
-                                             (rf/dispatch [::set-default-partial-amp
-                                                           i
-                                                           (-> ev .-target .-valueAsNumber)
-                                                           synths]))}]
-                       #_"->"
-                       "<"
-                       partial]))
-                  partial-amps)]))
+     [:h3 "Synth Partials " [:small "Only applies when playing a pair of degrees (not the beating partials)"]]
+     [:label "Total Partials: "
+      [:input {:type "number"
+               :step 1
+               :min 1
+               :default-value (count partial-amps)
+               :on-change (fn [ev]
+                            (rf/dispatch [::update-total-partial-amps
+                                          (-> ev .-target .-valueAsNumber)]))}]
+      [:small " Only new instances will be affected."]]
+     [:div {:style {:display "flex"}}
+      (map-indexed (fn [i amp]
+                     (let [partial (inc i)]
+                       [:label {:style {:display "flex" :flex-direction "column" :align-items "center"}
+                                :key i}
+                        [:input {:type "range"
+                                 :min 0
+                                 :max 1
+                                 :default-value amp
+                                 :step 0.01
+                                 :style {:writing-mode "vertical-lr" :direction "rtl"}
+                                 :on-change (fn [ev]
+                                              (rf/dispatch [::set-default-partial-amp
+                                                            i
+                                                            (-> ev .-target .-valueAsNumber)
+                                                            synths]))}]
+                        partial]))
+                   partial-amps)]
+     [:p "Note: the partials considered in table are " (str/join ", " partials)]]))
 
 (defn main []
   (let [beat-data @(rf/subscribe [::beat-data]) #_(@state :beat-data)]
@@ -498,7 +725,8 @@
         (periods-filter)
         (synth-controls)
         [:div [:button {:on-click (fn [] (rf/dispatch [::stop-all-synths]))}  "Stop all synths"]]
-        (table)])
+        #_(table)
+        (table2)])
      #_[:div
         [:p
          [:button {:on-click (fn [] (swap! state update :page dec))} "Previous Page"]
