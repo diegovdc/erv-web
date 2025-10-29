@@ -1,13 +1,13 @@
 (ns wilson-tunings.beating-analyzer.core
   (:require
    [clojure.string :as str]
-   [com.gfredericks.exact :as e]
    [erv.beating-analyzer.v1 :as ba]
    [erv.cps.core :refer [format]]
    [erv.utils.exact :refer [parse-ratios]]
    [erv.utils.exact :as eu]
    [re-frame.core :as rf]
    [wilson-tunings.beating-analyzer.synths :as bas]
+   [wilson-tunings.modal :refer [modal]]
    [wilson-tunings.synthesis :as wt.s]
    [wilson-tunings.utils :refer [parse-integers]]))
 
@@ -297,7 +297,6 @@
   (let [beat-freqs @(rf/subscribe [::beat-freqs])
         filters @(rf/subscribe [::filters])]
     (into [:tr
-           {} ;; do not remove this, even if unstyled, is necessary for the column filtering to take place in the `table` component. Otherwise the vector size will differ from that of the rows.
            [:th "Period"]
            [:th "Degrees"]]
           (keep (fn [bf]
@@ -320,21 +319,24 @@
 (comment
   @(rf/subscribe [::beat-freqs-by-hz])
   @(rf/subscribe [::thead-data]))
-
+(declare playing-synth-notifier)
 (rf/reg-sub
  ::thead-data
  :<- [::beat-freqs-by-hz]
  :<- [::non-empty-columns]
- (fn [[beat-freqs-by-hz columns-hz]]
+ :<- [::beat-freqs-active]
+ (fn [[beat-freqs-by-hz columns-hz beat-freqs-active]]
    {:period-label "Period"
     :degrees-label "Degrees"
     :hz-columns (->> columns-hz sort
                      (map (fn [hz]
                             (let [bf (beat-freqs-by-hz hz)]
-                              [:th {:key hz}
+                              [:th {:key hz :position "relative"}
                                (str hz "hz " "(" (:instances bf) ")")
                                [:br]
-                               (beat-factors-hiccup  (:beat-freq.factors bf))]))))})
+                               (beat-factors-hiccup  (:beat-freq.factors bf))
+                               (when (beat-freqs-active hz)
+                                 (playing-synth-notifier))]))))})
  #_(let [beat-freqs @(rf/subscribe [::beat-freqs])
          filters @(rf/subscribe [::filters])]
      (into [:tr
@@ -556,6 +558,18 @@
        [:thead header*]
        [:tbody rows*]])))
 
+(declare get-degree-pair-id)
+
+(defn playing-synth-notifier
+  []
+  [:span {:style {:display "block"
+                  :height 8
+                  :width 8
+                  :background-color "red"
+                  :position "absolute"
+                  :top 0
+                  :right 0}}])
+
 (defn thead2
   [thead-data]
   (into [:tr
@@ -579,39 +593,44 @@
                                  :background-color (if (get synths id) "cyan" "transparent")}
                          :on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
                   label])))]))
-
 (defn make-rows
   [synths
    non-empty-columns
+   degree-pairs-active
    {:keys [row-key
            root-label
            synth-id
            pair-beat-data
            deg-pair-label
            beat-cells]}]
-  (into [:tr {:key row-key}
-         [:td root-label]
-         [:td
-          [:span {:style {:border "1px solid orange"
-                          :cursor "pointer"
-                          :background-color (if (get synths synth-id) "cyan" "transparent")}
-                  :on-click (fn []
-                              (rf/dispatch
-                               [::toggle-degree-pair-synth
-                                synth-id
-                                (first pair-beat-data)]))}
-           deg-pair-label]]]
-        (keep #(make-cell synths non-empty-columns %) beat-cells)))
+  (let [pair-data (first pair-beat-data)]
+    (into [:tr {:key row-key}
+           [:td root-label]
+           [:td
+            {:position "relative"}
+            [:span {:style {:border "1px solid orange"
+                            :cursor "pointer"
+                            :background-color (if (get synths synth-id) "cyan" "transparent")}
+                    :on-click (fn []
+                                (rf/dispatch
+                                 [::toggle-degree-pair-synth
+                                  synth-id
+                                  pair-data]))}
+             deg-pair-label]
+            (when (degree-pairs-active (get-degree-pair-id pair-data))
+              (playing-synth-notifier))]]
+          (keep #(make-cell synths non-empty-columns %) beat-cells))))
 
 (defn table2
   []
   (let [thead-data @(rf/subscribe [::thead-data])
         synths @(rf/subscribe [::synths])
         rows-data @(rf/subscribe [::rows-data])
-        non-empty-columns @(rf/subscribe [::non-empty-columns])]
+        non-empty-columns @(rf/subscribe [::non-empty-columns])
+        degree-pairs-active @(rf/subscribe [::degree-pairs-active])]
     [:table {:class "beating-analyzer__table"}
      [:thead (thead2 thead-data)]
-     [:tbody (map #(make-rows synths non-empty-columns %) rows-data)]]))
+     [:tbody (map #(make-rows synths non-empty-columns degree-pairs-active %) rows-data)]]))
 
 (defn ratios-input []
   (let [ratios @(rf/subscribe [::ratios])
@@ -661,7 +680,39 @@
  (fn [db]
    (->> db ::synths vals flatten (filter bas/additive-synth?))))
 
+(rf/reg-sub
+ ::beat-data-pairs-by-id
+ (fn [db]
+   (->> db ::beat-data
+        (reduce (fn [acc pair]
+                  (assoc acc (::id pair) pair))
+                {}))))
 (comment
+  @(rf/subscribe [::beat-data-pairs-by-id]))
+(rf/reg-sub
+ ::beat-freqs-active
+ :<- [::beat-data-pairs-by-id]
+ :<- [::synths]
+ (fn [[beat-data-pairs-by-id synths]]
+   (->> synths keys (map (comp :beat-freq.hz beat-data-pairs-by-id))
+        set)))
+
+(def get-degree-pair-id (juxt :degree-1 :degree-2 :period))
+(rf/reg-sub
+ ::degree-pairs-active
+ :<- [::beat-data-pairs-by-id]
+ :<- [::synths]
+ (fn [[beat-data-pairs-by-id synths]]
+   (->> synths keys
+        (map #(-> (if (vector? %) (second %) %)
+                  beat-data-pairs-by-id
+                  get-degree-pair-id))
+        set)))
+
+(comment
+  @(rf/subscribe [::degree-pairs-active])
+  @(rf/subscribe [::beat-freqs-active])
+  @(rf/subscribe [::synths])
   @(rf/subscribe [::additive-synths])
 
   @(rf/subscribe [::partial-amps]))
@@ -714,9 +765,128 @@
                    partial-amps)]
      [:p "Note: the partials considered in table are " (str/join ", " partials)]]))
 
+(defn beating-synth-controls
+  []
+  (modal true (fn [])
+         [:div {:style {:display "flex" :flex-direction "column"}}
+          [:label [:span  "Amp 1"] [:input {:type "range"
+                                            :min 0
+                                            :max 1
+                                            :default-value 1
+                                            :step 0.01
+                                            :on-change (fn [ev]
+                                                         (println "setting amp")
+                                                         #_(rf/dispatch [::set-default-partial-amp
+                                                                         i
+                                                                         (-> ev .-target .-valueAsNumber)
+                                                                         synths]))}]]
+          [:label "Pan 1" [:input {:type "range"
+                                   :min 0
+                                   :max 1
+                                   :default-value 1
+                                   :step 0.01
+                                   :on-change (fn [ev]
+                                                (println "setting amp")
+                                                #_(rf/dispatch [::set-default-partial-amp
+                                                                i
+                                                                (-> ev .-target .-valueAsNumber)
+                                                                synths]))}]]
+          [:label "LFO 1 Depth" [:input {:type "range"
+                                         :min 0
+                                         :max 1
+                                         :default-value 1
+                                         :step 0.01
+                                         :on-change (fn [ev]
+                                                      (println "setting amp")
+                                                      #_(rf/dispatch [::set-default-partial-amp
+                                                                      i
+                                                                      (-> ev .-target .-valueAsNumber)
+                                                                      synths]))}]]
+          [:label "LFO 1 Freq" [:select
+                                [:option 1]
+                                [:option 2]]]
+          [:label "Amp 2" [:input {:type "range"
+                                   :min 0
+                                   :max 1
+                                   :default-value 1
+                                   :step 0.01
+                                   :on-change (fn [ev]
+                                                (println "setting amp")
+                                                #_(rf/dispatch [::set-default-partial-amp
+                                                                i
+                                                                (-> ev .-target .-valueAsNumber)
+                                                                synths]))}]]
+          [:label "Pan 2" [:input {:type "range"
+                                   :min 0
+                                   :max 1
+                                   :default-value 1
+                                   :step 0.01
+                                   :on-change (fn [ev]
+                                                (println "setting amp")
+                                                #_(rf/dispatch [::set-default-partial-amp
+                                                                i
+                                                                (-> ev .-target .-valueAsNumber)
+                                                                synths]))}]]
+          [:label "LFO 2 Depth" [:input {:type "range"
+                                         :min 0
+                                         :max 1
+                                         :default-value 1
+                                         :step 0.01
+                                         :on-change (fn [ev]
+                                                      (println "setting amp")
+                                                      #_(rf/dispatch [::set-default-partial-amp
+                                                                      i
+                                                                      (-> ev .-target .-valueAsNumber)
+                                                                      synths]))}]]]))
+
 (defn main []
   (let [beat-data @(rf/subscribe [::beat-data]) #_(@state :beat-data)]
+
     [:div [:h1 "Beating Analyzer"]
+     (beating-synth-controls)
+     [:style
+
+      "
+
+"
+      #_#_"
+      .beating-analyzer__table thead th:nth-child(1),
+     .beating-analyzer__table tbody td:nth-child(1) {
+         position: sticky;
+         left: 0;
+         background: #fff;
+         z-index: 1;
+         width: var(--first-col-width);
+         min-width: 101px;
+border-right: 1px solid red;
+     }
+
+     .beating-analyzer__table thead th:nth-child(2),
+     .beating-analyzer__table tbody td:nth-child(2) {
+         position: sticky;
+         left: 101px;
+         background: #fff;
+         z-index: 1;
+         width: var(--second-col-width);
+         min-width: var(--second-col-width);
+     }
+"
+
+        "
+      .beating-analyzer__table thead th {
+                                         position: sticky ; /* Makes the header cells sticky */
+                                         top: 0           ;
+                                         background: #fff ; /* Prevents content from showing through */
+                                         z-index: ;       /* Ensures the header stays above the scrolling rows */
+                                         }
+
+ .beating-analyzer__table thead th:nth-child(1),
+ .beating-analyzer__table thead th:nth-child(2){
+z-index: 2;
+}
+
+"]
+
      (ratios-input)
      (when (seq beat-data)
        [:div {:style {:margin-bottom 16}}

@@ -9,70 +9,148 @@
     />
     <style>
      * {
-       font-family: "Montserrat", sans-serif;
-       box-sizing: border-box;
+         font-family: "Montserrat", sans-serif;
+         box-sizing: border-box;
      }
      .wt__mos-title {
-       margin-bottom: 10px;
+         margin-bottom: 10px;
      }
      .wt__credits {
-       font-size: 11px;
-       margin-bottom: 20px;
+         font-size: 11px;
+         margin-bottom: 20px;
      }
      .wt__mos-form {
-       margin-bottom: 10px;
+         margin-bottom: 10px;
      }
      .wt__mos-form-input {
-       display: block;
+         display: block;
      }
      .wt__mos-table-interval {
-       background-color: #eee;
+         background-color: #eee;
      }
      .wt__mos-table-generate-secondary-mos-button {
-       margin-left: 2px;
+         margin-left: 2px;
      }
      .wt__mos-secondary-data h4 {
-       margin-bottom: 0;
+         margin-bottom: 0;
      }
      .wt__mos-secondary-data-mos-description {
-       margin-top: 0;
+         margin-top: 0;
      }
      .wt__mos-secondary-data-main {
-       margin-bottom: 20px;
+         margin-bottom: 20px;
      }
      .wt__mos-secondary-data-main h3 {
-       margin-bottom: 0;
+         margin-bottom: 0;
      }
      .wt__mos-secondary-data-detail {
-       margin-bottom: 10px;
+         margin-bottom: 10px;
      }
      .wt__mos-secondary-data-detail-explanation {
-       margin-top: 0;
-       margin-bottom: 0;
+         margin-top: 0;
+         margin-bottom: 0;
      }
      .wt__mos-secondary-data-button.selected {
-       background-color: #ffc107;
+         background-color: #ffc107;
      }
 
+     .beating-analyzer__table {
+         position: relative;
+     }
      .beating-analyzer__table,
      .beating-analyzer__table th,
      .beating-analyzer__table td {
-       border: 1px solid black;
-       border-collapse: collapse;
+         border-collapse: collapse;
+         border: 1px solid black;
      }
      
+     .beating-analyzer__table th {
+         min-width: 70px;
+         padding: 0 4px;
+     }
+     
+     .beating-analyzer__table thead th {
+         position: sticky; /* Makes the header cells sticky */
+         top: 0;
+         background: #fff; /* Prevents content from showing through */
+         z-index: 1;       /* Ensures the header stays above the scrolling rows */
+     }
+
+     /* First column sticky left */
+     .beating-analyzer__table thead th:nth-child(1),
+     .beating-analyzer__table tbody td:nth-child(1) {
+         position: sticky;
+         left: 0;
+         background: #fff;
+         z-index: 11;
+         width: 100px;
+         min-width: 100px;
+     }
+
+     /* Second column sticky left */
+     .beating-analyzer__table thead th:nth-child(2),
+     .beating-analyzer__table tbody td:nth-child(2) {
+         position: sticky;
+         left: 99px;
+         background: #fff;
+         z-index: 11;
+         min-width: 150px;
+     }
+
+     /* Top-left corner cell */
+     .beating-analyzer__table thead th:nth-child(1),
+     .beating-analyzer__table thead th:nth-child(2)
+     {
+         z-index: 12;
+     }
+
+     /* Add borders using pseudo-elements */
+     .beating-analyzer__table thead th::after,
+     .beating-analyzer__table tbody td::after {
+         content: '';
+         position: absolute;
+         bottom: 0;
+         right: 0;
+         left: 0;
+         height: 1px;
+         background: #ddd;
+     }
+
+     .beating-analyzer__table thead th::after,
+     .beating-analyzer__table tbody td::after {
+         bottom: -1px; /* Adjust positioning */
+     }
+
+     /* Right borders for sticky columns */
+     .beating-analyzer__table thead th:nth-child(1)::before,
+     .beating-analyzer__table tbody td:nth-child(1)::before,
+     .beating-analyzer__table thead th:nth-child(2)::before,
+     .beating-analyzer__table tbody td:nth-child(2)::before {
+         content: '';
+         position: absolute;
+         top: 0;
+         right: 0;
+         bottom: 0;
+         width: 1px;
+         background: #ddd;
+         z-index: 1;
+     }
 
      .beating-analyzer__table thead th {
-       position: sticky; /* Makes the header cells sticky */
-       top: 0;
-       background: #fff; /* Prevents content from showing through */
-       z-index: 1;       /* Ensures the header stays above the scrolling rows */
+         position: sticky; /* Makes the header cells sticky */
+         top: 0;
+         background: #fff; /* Prevents content from showing through */
+         z-index: 1;       /* Ensures the header stays above the scrolling rows */
      }
-
-     .beating-analyzer__table th {
-       min-width: 70px;
-       padding: 0 4px;
+     "
+     "
+     .beating-analyzer__table tr:hover,
+     .beating-analyzer__table tr:hover td:nth-child(1),
+     .beating-analyzer__table tr:hover td:nth-child(2)
+     {
+         background-color: beige;
      }
+     
     </style>
   </head>
   <body>

@@ -11,13 +11,23 @@
   (set-db [this db])
   (ramp-db [this db]))
 
+(defprotocol IAmpLFO
+  (set-amp-lfo-freq [this freq])
+  (set-amp-lfo-depth [this freq]))
+
 (defprotocol IAdditiveSynth
   (set-partial-db [this partial-index db])
   (set-partial-amp [this partial-index db])
   (ramp-partial-db [this partial-index db ramp-dur])
   (ramp-partial-amp [this partial-index db ramp-dur]))
 
-(defrecord Synth [^js osc ^js env ^js amp freq db rel dispose-on-release?]
+(defrecord Synth
+           [^js osc
+            ^js env
+            ^js amp
+            ^js amp-lfo
+            freq db rel dispose-on-release?]
+
   ISynth
   (play [this]
     (if (.-disposed osc)
@@ -36,12 +46,7 @@
 
   (dispose [this]
     (.dispose osc)
-
     this)
-
-  #_(set-freq [this new-freq]
-              (set! (.-frequency osc) new-freq)
-              (assoc this :freq new-freq))
 
   (set-db [this new-db]
     (set! (.. amp -volume -value) new-db)
@@ -49,7 +54,18 @@
 
   (ramp-db [this new-db]
     (.rampTo (.-volume amp) new-db 2)
-    (assoc this :db new-db)))
+    (assoc this :db new-db))
+
+  IAmpLFO
+  (set-amp-lfo-freq [this freq]
+    (set! (.. amp-lfo -frequency -value) freq)
+    this)
+
+  (set-amp-lfo-depth [this depth]
+    (set! (.. amp-lfo -min) (-> (- 1 depth)
+                                (min 1)
+                                (max 0)))
+    this))
 
 (defrecord AdditiveSynth [partial-oscs ^js add-node ^js env ^js amp freq db rel dispose-on-release?]
   ISynth
@@ -128,25 +144,36 @@
 
 ;; More flexible constructor
 (defn make-sine
-  [& {:keys [freq db type env]
+  [& {:keys [freq db type env lfo-freq]
       :or {freq 440
            db -12
-           type "sine"}}]
+           type "sine"
+           lfo-freq 0}}]
   (let [default-envelope {:attack 0.01 :decay 5 :sustain 0.8 :release 2}
         env-params (merge default-envelope env)
         rel (:release env-params)
         env* (Tone/AmplitudeEnvelope. (clj->js env-params))
         amp (Tone/Volume. db)
+        lfo-gain (Tone/Gain.)
+        amp-lfo (Tone/LFO. #js {:frequency lfo-freq
+                                :type "sine"
+                                :min 0.0
+                                :max 1})
+
         osc-params (clj->js {:frequency freq :type type})
         osc (Tone/Oscillator. osc-params)]
 
-    (connect-and-output [osc amp env*])
+    (connect-and-output [osc lfo-gain amp env*])
+    (.connect amp-lfo (.-gain lfo-gain))
+    (.start amp-lfo)
     (.start osc)
 
-    (->Synth osc env* amp freq db rel true)))
+    (->Synth osc env* amp amp-lfo freq db rel true)))
 (comment
-  (def s (make-sine))
+  (def s (make-sine {:env {:attack 2}}))
   (play s)
+  (set-amp-lfo-depth s 1)
+  (set-amp-lfo-freq s 1)
   (ramp-db s -0)
   (release s))
 
