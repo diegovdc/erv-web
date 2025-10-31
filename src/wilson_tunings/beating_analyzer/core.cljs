@@ -1,5 +1,6 @@
 (ns wilson-tunings.beating-analyzer.core
   (:require
+   ["tone" :as Tone]
    [clojure.string :as str]
    [erv.beating-analyzer.v1 :as ba]
    [erv.cps.core :refer [format]]
@@ -11,31 +12,34 @@
    [wilson-tunings.synthesis :as wt.s]
    [wilson-tunings.utils :refer [parse-integers]]))
 
-(def default-ratios "67/64
- 279/256
- 9/8
- 75/64
- 39/32
- 5/4
- 167/128
- 87/64
- 45/32
- 187/128
- 3/2
- 25/16
- 417/256
- 27/16
- 7/4
- 233/128
- 15/8
- 125/64
- 2/1
-")
+(def ^:private preset-scales
+  (->> [{:name "Meta-meantone (Wilson)"
+         :ratios "67/64 279/256 9/8 75/64 39/32 5/4 167/128 87/64 45/32 187/128 3/2 25/16 417/256 27/16 7/4 233/128 15/8 125/64 2/1"}
+        {:name "Meta-Slendro (Grady-Wilson)"
+         :ratios "49/48 25/24 7/6 19/16 4/3 65/48 3/2 37/24 151/96 7/4 43/24 2/1"}
+        {:name "Centaura (Grady)"
+         :ratios "33/32 9/8 7/6 5/4 4/3 11/8 3/2 14/9 5/3 7/4 15/8 2/1"}
+        {:name "Evangelina (Wilson)"
+         :ratios "19/18 13/12 10/9 9/8 7/6 11/9 5/4 23/18 4/3 11/8 45/32 17/12 3/2 19/12 13/8 5/3 27/16 7/4 11/6 15/8 23/12 2/1"}
+        {:name "7-tone Near Equal"
+         :ratios "23/21 69/56 4/3 3/2 23/14 16/9 2/1"}]
+       (map #(update % :ratios (fn [s] (str/replace s #" " "\n"))))))
+
+(def default-ratios (->> preset-scales (rand-nth) :ratios))
 
 (def default-state
   {::ratios default-ratios
+   ::root-freq 1
+   ::period 2
    ::partials [1 2 3 4 5]
    ::partial-amps [1 0.9 0.8 0.7 0.6]})
+
+(rf/reg-event-fx
+ ::init
+ (fn [{:keys [db]}]
+   (when-not (::eq db)
+     (wt.s/init!)
+     {:db (assoc db ::eq (bas/make-eq))})))
 
 (rf/reg-sub
  ::beat-freqs
@@ -86,6 +90,15 @@
         (sort-by (comp (juxt #(nth % 2 nil) first second) first)))))
 
 (rf/reg-sub
+ ::beat-data-by-id
+ :<- [::beat-data]
+ (fn [beat-data]
+   (reduce (fn [acc data]
+             (assoc acc (::id data) data))
+           {}
+           beat-data)))
+
+(rf/reg-sub
  ::partials
  (fn [db]
    (::partials db)))
@@ -98,24 +111,24 @@
 
 (rf/reg-event-fx
  ::set-ratios
- (fn [{:keys [db]} ratios]
+ (fn [{:keys [db]} [_ ratios]]
    {:db (assoc db ::ratios ratios)}))
 
 (rf/reg-event-fx
  ::set-beat-data
  (fn [{:keys [db]}]
-   (wt.s/init!)
-   (let [parsed-ratios (parse-ratios (::ratios db))
+   (let [period (::period db 2)
+         root-freq (::root-freq db 1)
+         parsed-ratios (parse-ratios (::ratios db))
          beat-data (map-indexed
                     #(assoc %2 ::id %1)
-                    (ba/get-beat-data (eu/->exact 2)
-                                      (eu/->exact 1)
+                    (ba/get-beat-data (eu/->exact period)
+                                      (eu/->exact root-freq)
                                       (map eu/->exact (::partials db))
                                       parsed-ratios))]
      {:db (assoc db
                  ::parsed-ratios parsed-ratios
                  ::beat-data beat-data)})))
-
 (rf/reg-event-fx
  ::toggle-harmonic-pair-synth
  (fn
@@ -126,6 +139,7 @@
                             ratio-2
                             ratio-2-partial]}]]
    (let [data-k* (::id data-k)
+         eq-node (::eq db)
          synths (get-in db [::synths data-k*])
          updated-db (if synths
                       (do
@@ -139,7 +153,7 @@
                             freq-2 (* root-hz
                                       (eu/->native ratio-2)
                                       (eu/->native ratio-2-partial))
-                            params {:env env, :db -32}
+                            params {:env env, :db -32 :eq-node eq-node}
                             synths [(bas/play (bas/make-sine (assoc params :freq freq-1)))
                                     (bas/play (bas/make-sine (assoc params :freq freq-2)))]]
                         (println freq-1 freq-2)
@@ -150,6 +164,7 @@
  ::partial-amps
  (fn [db]
    (::partial-amps db)))
+
 (rf/reg-event-fx
  ::toggle-degree-pair-synth
  (fn [{:keys [db]}
@@ -158,6 +173,7 @@
                     ratio-1
                     ratio-2]}]]
    (let [data-k* id
+         eq-node (::eq db)
          synths (get-in db [::synths data-k*])
          updated-db (if synths
                       (do
@@ -169,7 +185,8 @@
                             freq-2 (* root-hz (eu/->native ratio-2))
                             params {:partial-amps @(rf/subscribe [::partial-amps])
                                     :env env
-                                    :db -32}
+                                    :db -32
+                                    :eq-node eq-node}
                             synths [(bas/play (bas/make-additive (assoc params :freq freq-1)))
                                     (bas/play (bas/make-additive (assoc params :freq freq-2)))]]
                         (println freq-1 freq-2)
@@ -203,6 +220,12 @@
                 (->> source-data
                      (map (fn [data] [data  on?]))
                      (into {}))]))
+(let [x 1]
+  (str/join (take 6 (str x))))
+(defn pretty-float
+  ([x]  (pretty-float 5 x))
+  ([n x]
+   (str/join (take n (str x)))))
 
 (defn beat-freqs-filter
   []
@@ -211,7 +234,7 @@
         filters @(rf/subscribe [::filters])]
     [:div
      [:h3 "Beat Frequencies filter"]
-     [:p "Note: no filters are selected by default. To populate the table select something. Using \"Select All\" can slow down the page."]
+     [:p [:b {:style {:color "blue"}} "Note"] ": no filters are selected by default. To populate the table select something. Using \"Select All\" can slow down the page."]
      [:div {:style {:display "flex" :gap 8 :flex-wrap "wrap"}}
       [:button
        {:on-click (fn [] (update-all-filters beat-hz :beat-freqs false))}
@@ -232,7 +255,7 @@
                                       (rf/dispatch [::update-filter
                                                     :beat-freqs
                                                     {id (-> ev .-target .-checked)}]))}]
-                (:beat-freq.hz bf) "hz - "
+                (pretty-float (:beat-freq.hz bf)) "hz - "
                 (beat-factors-hiccup  (:beat-freq.factors bf))
                 " - (" (:instances bf) ")"]))
            beat-freqs)]]))
@@ -291,7 +314,6 @@
                                                   {period (-> ev .-target .-checked)}]))}]
               period])
            periods)]]))
-
 (defn thead
   []
   (let [beat-freqs @(rf/subscribe [::beat-freqs])
@@ -302,7 +324,7 @@
           (keep (fn [bf]
                   (let [hz (:beat-freq.hz bf)]
                     (when-not (false? (get-in filters [:beat-freqs hz]))
-                      [:th {:key hz} (str hz "hz " "(" (:instances bf) ")")
+                      [:th {:key hz} (str (pretty-float hz) "hz " "(" (:instances bf) ")")
                        [:br]
                        (beat-factors-hiccup  (:beat-freq.factors bf))])))
                 beat-freqs))))
@@ -320,6 +342,7 @@
   @(rf/subscribe [::beat-freqs-by-hz])
   @(rf/subscribe [::thead-data]))
 (declare playing-synth-notifier)
+
 (rf/reg-sub
  ::thead-data
  :<- [::beat-freqs-by-hz]
@@ -332,7 +355,7 @@
                      (map (fn [hz]
                             (let [bf (beat-freqs-by-hz hz)]
                               [:th {:key hz :position "relative"}
-                               (str hz "hz " "(" (:instances bf) ")")
+                               (str (pretty-float hz) "hz " "(" (:instances bf) ")")
                                [:br]
                                (beat-factors-hiccup  (:beat-freq.factors bf))
                                (when (beat-freqs-active hz)
@@ -460,10 +483,10 @@
                          :label (str (eu/make-readable ratio-1-partial)
                                      ","
                                      (eu/make-readable ratio-2-partial))})))}))
-
 (defn row-not-empty?2
   [beat-cells]
   (some #(not (:is-empty? %)) beat-cells))
+
 #_(row-not-empty?2 [{:id "1.875", :is-empty? true, :pairs ()}])
 
 (defn maybe-make-row-data
@@ -487,7 +510,6 @@
        :beat-cells beat-cells
        :deg-pair-label deg-pair-label
        :pair-beat-data pair-beat-data})))
-
 (rf/reg-sub
  ::rows-data
  :<- [::sorted-data-by-degree-pairs]
@@ -502,6 +524,7 @@
           (filter #(keep-row? degrees-filter periods-filter (first %)))
            ;; NOTE `maybe-make-row` may return `nil` when all cells are empty (i.e. can occur when filtering columns)
           (keep (fn [kv-data] (maybe-make-row-data beat-freqs-filter beat-freq-column-data synths kv-data)))))))
+
 #_(defn non-empty-columns [rows]
     (let [col-indexes (->> rows
                            (drop-while nil?)
@@ -577,7 +600,6 @@
          [:th (:period-label thead-data)]
          [:th (:degrees-label thead-data)]]
         (:hz-columns thead-data)))
-
 (defn make-cell
   [synths
    non-empty-columns
@@ -591,8 +613,15 @@
                          :style {:border "1px solid orange"
                                  :cursor "pointer"
                                  :background-color (if (get synths id) "cyan" "transparent")}
+                         :on-context-menu (fn [ev]
+                                            (.preventDefault ev)
+                                            (rf/dispatch [::toggle-beating-synth-controls id]))
                          :on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
                   label])))]))
+
+(comment
+  (rf/dispatch [::toggle-beating-synth-controls 1]))
+
 (defn make-rows
   [synths
    non-empty-columns
@@ -632,23 +661,69 @@
      [:thead (thead2 thead-data)]
      [:tbody (map #(make-rows synths non-empty-columns degree-pairs-active %) rows-data)]]))
 
+(rf/reg-event-db
+ ::set-root-freq
+ (fn [db [_ root-freq]]
+   (when (pos? root-freq)
+     (assoc db ::root-freq root-freq))))
+
+(rf/reg-event-db
+ ::set-period
+ (fn [db [_ period]]
+   (when (pos? period)
+     (assoc db ::period (int period)))))
+
+(rf/reg-sub
+ ::root-freq
+ (fn [db]
+   (::root-freq db)))
+
+(rf/reg-sub
+ ::period
+ (fn [db]
+   (::period db)))
+
 (defn ratios-input []
   (let [ratios @(rf/subscribe [::ratios])
-        partials @(rf/subscribe [::partials])]
+        partials @(rf/subscribe [::partials])
+        period @(rf/subscribe [::period])
+        root-freq @(rf/subscribe [::root-freq])]
     [:div
-     [:div [:label "Scale"]]
-     [:textarea {:rows 19
-                 :value ratios
-                 :on-change (fn [ev]
-                              (rf/dispatch [::set-ratios (-> ev .-target .-value)]))}]
+     [:div "Scale"]
+     [:div [:select
+            {:value ratios
+             :on-change (fn [ev]
+                          (rf/dispatch [::set-ratios (.. ev -target -value)]))}
+            [:option "Scale Presets"]
+            (map (fn [{:keys [ratios name]}]
+                   [:option {:key name :value ratios} name])
+                 preset-scales)]]
+     [:div [:textarea {:rows 19
+                       :value ratios
+                       :on-change (fn [ev]
+                                    (rf/dispatch [::set-ratios (-> ev .-target .-value)]))}]]
      [:div [:label
             [:b "Partials to consider: "]
             [:input {:type "text"
                      :defaultValue (str/join ", " partials)
                      :on-blur (fn [ev]
                                 (rf/dispatch [::set-partials (-> ev .-target .-value parse-integers)]))}]]]
+     [:div [:label "Root Frequency: " [:input {:type "number"
+                                               :value root-freq
+                                               :on-change (fn [ev]
+                                                            (rf/dispatch
+                                                             [::set-root-freq
+                                                              (-> ev .-target .-valueAsNumber int)]))}]]]
+     [:div [:label "Period: " [:input {:type "number"
+                                       :value period
+                                       :on-change (fn [ev]
+                                                    (rf/dispatch
+                                                     [::set-period
+                                                      (-> ev .-target .-valueAsNumber)]))}]]]
      [:div
-      [:button {:on-click (fn [] (rf/dispatch [::set-beat-data]))}
+      [:button {:on-click (fn []
+                            (rf/dispatch [::init])
+                            (rf/dispatch [::set-beat-data]))}
        "Analyze Scale Beating"]]]))
 
 (rf/reg-fx
@@ -765,129 +840,233 @@
                    partial-amps)]
      [:p "Note: the partials considered in table are " (str/join ", " partials)]]))
 
-(defn beating-synth-controls
+(rf/reg-event-fx
+ ::toggle-beating-synth-controls
+ (fn [{:keys [db]} [_ pair-id]]
+   {:db (-> db
+            (update ::beating-synth-controls-open? not)
+            (assoc ::beating-synth-controls-pair-id pair-id))}))
+
+(do
+  (defn make-beating-synth-change
+    [param-key synth-index value]
+    (let [indexes (cond (nil? synth-index) #{0 1}
+                        (#{0 1} synth-index) #{synth-index}
+                        :else (throw (ex-info "Bad synth index" {:param-key param-key
+                                                                 :synth-index synth-index
+                                                                 :value value})))]
+
+      (map (fn [i]
+             (if-not (indexes i)
+               {}
+               {param-key value}))
+           (range 2))))
+  (make-beating-synth-change :pan nil 0.8))
+
+(rf/reg-event-fx
+ ::apply-beating-synth-change
+ (fn [{:keys [db]} [_ pair-id param-key synth-index value]]
+   (println value)
+   (let [synth-pairs-params (::synth-pairs-params db {})
+         pair-params (get synth-pairs-params pair-id [{} {}])
+         param-update (make-beating-synth-change param-key synth-index value)
+         updated-params (mapv merge pair-params param-update)
+         synth-pair (-> db ::synths (get pair-id))]
+     {:db (assoc-in db [::synth-pairs-params pair-id] updated-params)
+      ::apply-beating-synth-param-change [synth-pair param-update]})))
+(doseq [s (map vector [0 1] [:a :b])]
+  (println s))
+(seq {:a 1})
+(comment)
+
+(defn gain->db [x]
+  (let [x* (if (= x ##-Inf) -90 x)]
+    (Tone/gainToDb x*)))
+(rf/reg-fx
+ ::apply-beating-synth-param-change
+ (fn [[synth-pair param-update]]
+   (doseq [[synth param-update] (map vector synth-pair (map seq param-update))]
+     (doseq [[param-key v] param-update]
+       (case param-key
+         :amp (bas/ramp-db synth (Tone/gainToDb v) 0.2)
+         :pan (bas/set-pan synth v)
+         :lfo-depth (bas/set-amp-lfo-depth synth v)
+         (fn []))))))
+
+(rf/reg-event-fx
+  ;; We don't want immediately apply lfo changes, because they may be very abrupt
+ ::apply-beating-synth-lfo
+ (fn [{:keys [db]} [_ synth-index pair-id]]
+   (let [synth (get-in db [::synths pair-id synth-index])
+         {:keys [lfo-freq lfo-mult]} (get-in db [::synth-pairs-params pair-id synth-index])]
+     (when (and synth lfo-freq)
+       {::apply-beating-synth-lfo [synth (* lfo-freq (or lfo-mult 1))]}))))
+
+(rf/reg-fx
+ ::apply-beating-synth-lfo
+ (fn [[synth lfo-freq]]
+   (println synth lfo-freq)
+   (bas/set-amp-lfo-freq synth lfo-freq)))
+
+(rf/reg-sub
+ ::synth-pairs-params
+ (fn [db]
+   (::synth-pairs-params db)))
+
+(rf/reg-sub
+ ::beating-synth-controls-open?
+ (fn [db] (::beating-synth-controls-open? db)))
+
+(rf/reg-sub
+ ::beating-synth-controls-pair-id
+ (fn [db] (::beating-synth-controls-pair-id db)))
+
+(defn lfo-freq-select
+  [synth-index pair-id update-fn]
+  (let [beat-freqs @(rf/subscribe [::beat-freqs])
+        {:keys [lfo-freq lfo-mult]
+         :or {lfo-freq (-> beat-freqs first :beat-freq.hz)
+              lfo-mult 1}} (get-in @(rf/subscribe [::synth-pairs-params])
+                                   [pair-id synth-index])]
+    [:div
+     [:div [:label [:small {:style {:display "inline-block" :width 40}} "LFO"]
+            [:select {:value lfo-freq
+                      :on-change (fn [ev]
+                                   (update-fn
+                                    :lfo-freq
+                                    synth-index
+                                    (-> ev .-target .-value js/Number)))}
+             (map (fn [bf]
+                    (let [hz (:beat-freq.hz bf)]
+                      [:option {:key hz :value hz}
+                       (pretty-float hz) "hz"]))
+                  beat-freqs)]
+            [:span
+             [:button
+              {:on-click (fn [] (update-fn :lfo-mult synth-index 1))}
+              "1"]
+             [:button
+              {:on-click (fn [] (update-fn :lfo-mult synth-index (* lfo-mult 2)))}
+              "*2"]
+             [:button
+              {:on-click (fn [] (update-fn :lfo-mult synth-index (* lfo-mult 0.5)))}
+              "/2"]]
+            [:div
+             [:button
+              {:on-click (fn [] (rf/dispatch [::apply-beating-synth-lfo
+                                              synth-index
+                                              pair-id]))}
+              "Apply LFO@" (pretty-float 8 (* lfo-mult lfo-freq)) "hz"]]]]]))
+
+(defn beating-synth-controls-modal
   []
-  (modal true (fn [])
-         [:div {:style {:display "flex" :flex-direction "column"}}
-          [:label [:span  "Amp 1"] [:input {:type "range"
-                                            :min 0
-                                            :max 1
-                                            :default-value 1
-                                            :step 0.01
-                                            :on-change (fn [ev]
-                                                         (println "setting amp")
-                                                         #_(rf/dispatch [::set-default-partial-amp
-                                                                         i
-                                                                         (-> ev .-target .-valueAsNumber)
-                                                                         synths]))}]]
-          [:label "Pan 1" [:input {:type "range"
-                                   :min 0
-                                   :max 1
-                                   :default-value 1
-                                   :step 0.01
-                                   :on-change (fn [ev]
-                                                (println "setting amp")
-                                                #_(rf/dispatch [::set-default-partial-amp
-                                                                i
-                                                                (-> ev .-target .-valueAsNumber)
-                                                                synths]))}]]
-          [:label "LFO 1 Depth" [:input {:type "range"
-                                         :min 0
-                                         :max 1
-                                         :default-value 1
-                                         :step 0.01
-                                         :on-change (fn [ev]
-                                                      (println "setting amp")
-                                                      #_(rf/dispatch [::set-default-partial-amp
-                                                                      i
-                                                                      (-> ev .-target .-valueAsNumber)
-                                                                      synths]))}]]
-          [:label "LFO 1 Freq" [:select
-                                [:option 1]
-                                [:option 2]]]
-          [:label "Amp 2" [:input {:type "range"
-                                   :min 0
-                                   :max 1
-                                   :default-value 1
-                                   :step 0.01
-                                   :on-change (fn [ev]
-                                                (println "setting amp")
-                                                #_(rf/dispatch [::set-default-partial-amp
-                                                                i
-                                                                (-> ev .-target .-valueAsNumber)
-                                                                synths]))}]]
-          [:label "Pan 2" [:input {:type "range"
-                                   :min 0
-                                   :max 1
-                                   :default-value 1
-                                   :step 0.01
-                                   :on-change (fn [ev]
-                                                (println "setting amp")
-                                                #_(rf/dispatch [::set-default-partial-amp
-                                                                i
-                                                                (-> ev .-target .-valueAsNumber)
-                                                                synths]))}]]
-          [:label "LFO 2 Depth" [:input {:type "range"
-                                         :min 0
-                                         :max 1
-                                         :default-value 1
-                                         :step 0.01
-                                         :on-change (fn [ev]
-                                                      (println "setting amp")
-                                                      #_(rf/dispatch [::set-default-partial-amp
-                                                                      i
-                                                                      (-> ev .-target .-valueAsNumber)
-                                                                      synths]))}]]]))
+
+  (let [open? @(rf/subscribe [::beating-synth-controls-open?])
+        pair-id @(rf/subscribe [::beating-synth-controls-pair-id])
+        beat-data-by-id @(rf/subscribe [::beat-data-by-id])
+        synths @(rf/subscribe [::synths])
+        {:as pair-data
+         hz :beat-freq.hz
+         beat-factors :beat-freq.factors
+         :keys [degree-1
+                degree-2
+                ratio-1
+                ratio-1-partial
+                ratio-2
+                ratio-2-partial
+                root-hz]} (beat-data-by-id pair-id)
+        playing? (get synths pair-id)
+        update-fn (fn [param-key synth-index value]
+                    (rf/dispatch [::apply-beating-synth-change pair-id param-key synth-index value]))
+        slider (fn [{:keys [label param-key default-value synth-index min max step]
+                     :or {min 0 max 1 step 0.01}}]
+                 (let [list (str label synth-index)
+                       list-intervals (/ (- max min) 10)]
+                   [:label
+                    [:small {:style {:display "inline-block" :width 80}} label]
+                    [:input {:type "range"
+                             :list list
+                             :min min
+                             :max max
+                             :default-value default-value
+                             :step step
+                             :on-change (fn [ev]
+                                          (update-fn
+                                           param-key
+                                           synth-index
+                                           (-> ev .-target .-valueAsNumber)))}]
+                    [:datalist {:id list}
+                     (map (fn [i] [:option {:key i :value i}])
+                          (range 0 (* 11 list-intervals) list-intervals))]]))]
+    (when pair-id
+      (modal open?
+             (fn [] (rf/dispatch [::toggle-beating-synth-controls]))
+             [:div
+              [:h3 {:style {:display "flex" :justify-content "center" :align-items "center"}}
+               (beat-factors-hiccup beat-factors) ": " (pretty-float hz) "hz"]
+              [:div {:style {:display "flex"
+                             :justify-content "space-between"
+                             :gap 16}}
+
+               [:div {:style {:display "flex" :flex-direction "column"}}
+                [:div
+                 [:div "degree: " degree-1 ", ratio: " (eu/make-readable ratio-1)]
+                 [:div
+                  "partial: " (eu/make-readable ratio-1-partial)
+                  ", freq: " (pretty-float (* root-hz
+                                              (eu/->native ratio-1)
+                                              (eu/->native ratio-1-partial)))
+                  "hz"]]
+                (slider {:label "Amp"
+                         :param-key :amp
+                         :min 0
+                         :max 0.5
+                         :default-value (Tone/dbToGain -32)
+                         :synth-index 0})
+                (slider {:label "Pan"
+                         :param-key :pan
+                         :default-value 0.5
+                         :synth-index 0})
+                (slider {:label "LFO Depth"
+                         :param-key :lfo-depth
+                         :default-value 0
+                         :synth-index 0})
+                (lfo-freq-select 0 pair-id update-fn)]
+               [:div {:style {:display "flex" :flex-direction "column"}}
+                [:div
+                 [:div "degree: " degree-2 ", ratio: " (eu/make-readable ratio-2)]
+                 [:div
+                  "partial: " (eu/make-readable ratio-2-partial)
+                  ", freq: " (pretty-float (* root-hz
+                                              (eu/->native ratio-2)
+                                              (eu/->native ratio-2-partial)))
+                  "hz"]]
+                (slider {:label "Amp"
+                         :param-key :amp
+                         :min 0
+                         :max 0.5 ;; -6db
+                         :default-value (Tone/dbToGain -32)
+                         :synth-index 1})
+                (slider {:label "Pan"
+                         :param-key :pan
+                         :default-value 0.5
+                         :synth-index 1})
+                (slider {:label "LFO Depth"
+                         :param-key :lfo-depth
+                         :default-value 0
+                         :synth-index 1})
+                (lfo-freq-select 1 pair-id update-fn)]]
+
+              [:div {:style {:display "flex" :justify-content "center" :gap 32}}
+               [:button {:on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
+                (if playing? "Stop Synth" "Start Synth")]]]))))
 
 (defn main []
-  (let [beat-data @(rf/subscribe [::beat-data]) #_(@state :beat-data)]
+  (let [beat-data @(rf/subscribe [::beat-data])]
 
     [:div [:h1 "Beating Analyzer"]
-     (beating-synth-controls)
-     [:style
-
-      "
-
-"
-      #_#_"
-      .beating-analyzer__table thead th:nth-child(1),
-     .beating-analyzer__table tbody td:nth-child(1) {
-         position: sticky;
-         left: 0;
-         background: #fff;
-         z-index: 1;
-         width: var(--first-col-width);
-         min-width: 101px;
-border-right: 1px solid red;
-     }
-
-     .beating-analyzer__table thead th:nth-child(2),
-     .beating-analyzer__table tbody td:nth-child(2) {
-         position: sticky;
-         left: 101px;
-         background: #fff;
-         z-index: 1;
-         width: var(--second-col-width);
-         min-width: var(--second-col-width);
-     }
-"
-
-        "
-      .beating-analyzer__table thead th {
-                                         position: sticky ; /* Makes the header cells sticky */
-                                         top: 0           ;
-                                         background: #fff ; /* Prevents content from showing through */
-                                         z-index: ;       /* Ensures the header stays above the scrolling rows */
-                                         }
-
- .beating-analyzer__table thead th:nth-child(1),
- .beating-analyzer__table thead th:nth-child(2){
-z-index: 2;
-}
-
-"]
-
      (ratios-input)
+
      (when (seq beat-data)
        [:div {:style {:margin-bottom 16}}
         (beat-freqs-filter)
@@ -896,11 +1075,5 @@ z-index: 2;
         (synth-controls)
         [:div [:button {:on-click (fn [] (rf/dispatch [::stop-all-synths]))}  "Stop all synths"]]
         #_(table)
-        (table2)])
-     #_[:div
-        [:p
-         [:button {:on-click (fn [] (swap! state update :page dec))} "Previous Page"]
-         (:page @state)
-         [:button {:on-click (fn [] (swap! state update :page inc))} "Next Page"]]
-        [:p (count (:beat-data @state))]
-        [:p (count (:beat-data @state))]]]))
+        (table2)
+        (beating-synth-controls-modal)])]))

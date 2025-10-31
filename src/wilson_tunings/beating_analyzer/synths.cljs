@@ -9,7 +9,8 @@
   (dispose [this])
   ;; (set-freq [this freq])
   (set-db [this db])
-  (ramp-db [this db]))
+  (set-pan [this pan])
+  (ramp-db [this db ramp-dur]))
 
 (defprotocol IAmpLFO
   (set-amp-lfo-freq [this freq])
@@ -24,6 +25,7 @@
 (defrecord Synth
            [^js osc
             ^js env
+            ^js panner
             ^js amp
             ^js amp-lfo
             freq db rel dispose-on-release?]
@@ -52,12 +54,17 @@
     (set! (.. amp -volume -value) new-db)
     (assoc this :db new-db))
 
-  (ramp-db [this new-db]
-    (.rampTo (.-volume amp) new-db 2)
+  (ramp-db [this new-db dur]
+    (.rampTo (.-volume amp) new-db dur)
     (assoc this :db new-db))
+
+  (set-pan [this pan]
+    (set! (.. panner -pan -value) pan)
+    this)
 
   IAmpLFO
   (set-amp-lfo-freq [this freq]
+    (println "Setting")
     (set! (.. amp-lfo -frequency -value) freq)
     this)
 
@@ -96,8 +103,8 @@
     (set! (.. amp -volume -value) new-db)
     (assoc this :db new-db))
 
-  (ramp-db [this new-db]
-    (.rampTo (.-volume amp) new-db 2)
+  (ramp-db [this new-db dur]
+    (.rampTo (.-volume amp) new-db dur)
     (assoc this :db new-db))
 
   IAdditiveSynth
@@ -144,41 +151,44 @@
 
 ;; More flexible constructor
 (defn make-sine
-  [& {:keys [freq db type env lfo-freq]
+  [& {:keys [freq db type env lfo-freq pan eq-node]
       :or {freq 440
            db -12
            type "sine"
+           pan 0
            lfo-freq 0}}]
   (let [default-envelope {:attack 0.01 :decay 5 :sustain 0.8 :release 2}
         env-params (merge default-envelope env)
         rel (:release env-params)
         env* (Tone/AmplitudeEnvelope. (clj->js env-params))
+        panner (Tone/Panner. pan)
         amp (Tone/Volume. db)
         lfo-gain (Tone/Gain.)
         amp-lfo (Tone/LFO. #js {:frequency lfo-freq
                                 :type "sine"
-                                :min 0.0
+                                :min 1
                                 :max 1})
 
         osc-params (clj->js {:frequency freq :type type})
         osc (Tone/Oscillator. osc-params)]
 
-    (connect-and-output [osc lfo-gain amp env*])
+    (connect-and-output [osc amp lfo-gain panner env* eq-node])
     (.connect amp-lfo (.-gain lfo-gain))
     (.start amp-lfo)
     (.start osc)
 
-    (->Synth osc env* amp amp-lfo freq db rel true)))
+    (->Synth osc env* panner amp amp-lfo freq db rel true)))
 (comment
-  (def s (make-sine {:env {:attack 2}}))
+  (def s (make-sine {:pan -1 :env {:attack 2}}))
   (play s)
+  (set-pan s 1)
   (set-amp-lfo-depth s 1)
   (set-amp-lfo-freq s 1)
-  (ramp-db s -0)
+  (ramp-db s -12 2)
   (release s))
 
 (defn make-additive
-  [& {:keys [freq partial-amps db env]
+  [& {:keys [freq partial-amps db env eq-node]
       :or {freq 440 db -12}}]
   (let [default-envelope {:attack 0.01 :decay 5 :sustain 0.8 :release 2}
         env-params (merge default-envelope env)
@@ -194,7 +204,7 @@
                                   partial-amps)]
     (add-signals add-node partial-oscs)
 
-    (connect-and-output [add-node amp env*])
+    (connect-and-output [add-node amp env* eq-node])
 
     (doseq [osc partial-oscs]
       (.start osc))
@@ -208,12 +218,27 @@
 (comment
 
   (Tone/gainToDb 0)
-  (def s2 (make-additive {:partial-amps [1 0.4 0.6 0.5 0.3 0.3]
+  (def eq (Tone/EQ3. 3 -6 3))
+  (set! (.. eq -low -value) 0)
+  (def s3 (make-additive {:partial-amps [1 0.4 0.6 0.5 0.3 0.3]
+                          :eq-rack eq
+                          :freq 220
                           :env {:attack 20}}))
   (-> s2 type)
   (instance? AdditiveSynth s2)
-  (play s2)
-  (ramp-db s2 -0)
+  (play s3)
+  (ramp-db s2 -0 2)
   (release s2)
   (set-partial-amp s2 1 0)
   (set-partial-db s2 7 -60))
+
+(defn make-eq
+  []
+  (Tone/EQ3. 3 -3 1))
+
+(comment
+  (def eq (make-eq))
+  (set! (.. (:eq-rack eq) -gain -value) 0.5)
+  (set! (.. (:low-eq eq) -frequency -value) 10000)
+  (set! (.. eq -frequency -value) 100)
+  (set! (.. eq -gain -value) 1))
