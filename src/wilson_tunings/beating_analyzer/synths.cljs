@@ -234,7 +234,7 @@
 
 (defn make-eq
   []
-  (Tone/EQ3. 3 -3 1))
+  (Tone/EQ3. 3 -3 -5))
 
 (comment
   (def eq (make-eq))

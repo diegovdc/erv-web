@@ -34,6 +34,9 @@
    ::partials [1 2 3 4 5]
    ::partial-amps [1 0.9 0.8 0.7 0.6]})
 
+(comment
+  (.rampTo (-> @re-frame.db/app-db ::eq .-high) -5))
+
 (rf/reg-event-fx
  ::init
  (fn [{:keys [db]}]
@@ -140,6 +143,8 @@
                             ratio-2-partial]}]]
    (let [data-k* (::id data-k)
          eq-node (::eq db)
+         previous-params (get @(rf/subscribe [::synth-pairs-params])
+                              (::id data-k))
          synths (get-in db [::synths data-k*])
          updated-db (if synths
                       (do
@@ -154,8 +159,12 @@
                                       (eu/->native ratio-2)
                                       (eu/->native ratio-2-partial))
                             params {:env env, :db -32 :eq-node eq-node}
-                            synths [(bas/play (bas/make-sine (assoc params :freq freq-1)))
-                                    (bas/play (bas/make-sine (assoc params :freq freq-2)))]]
+                            synths [(bas/play (bas/make-sine
+                                               (merge params {:freq freq-1}
+                                                      (nth previous-params 0 {}))))
+                                    (bas/play (bas/make-sine
+                                               (merge params {:freq freq-2}
+                                                      (nth previous-params 1 {}))))]]
                         (println freq-1 freq-2)
 
                         (update db ::synths assoc data-k* synths)))]
@@ -838,7 +847,8 @@
                                                             synths]))}]
                         partial]))
                    partial-amps)]
-     [:p "Note: the partials considered in table are " (str/join ", " partials)]]))
+     [:p "Note: the partials considered in table are " (str/join ", " partials)]
+     [:p [:b {:style {:color  "blue"}} "Tip"] ": right-click on the harmonic pairs synth button to bring up their controls."]]))
 
 (rf/reg-event-fx
  ::toggle-beating-synth-controls
@@ -874,14 +884,7 @@
          synth-pair (-> db ::synths (get pair-id))]
      {:db (assoc-in db [::synth-pairs-params pair-id] updated-params)
       ::apply-beating-synth-param-change [synth-pair param-update]})))
-(doseq [s (map vector [0 1] [:a :b])]
-  (println s))
-(seq {:a 1})
-(comment)
 
-(defn gain->db [x]
-  (let [x* (if (= x ##-Inf) -90 x)]
-    (Tone/gainToDb x*)))
 (rf/reg-fx
  ::apply-beating-synth-param-change
  (fn [[synth-pair param-update]]
