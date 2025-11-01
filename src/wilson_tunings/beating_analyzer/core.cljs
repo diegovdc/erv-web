@@ -981,17 +981,19 @@
         playing? (get synths pair-id)
         update-fn (fn [param-key synth-index value]
                     (rf/dispatch [::apply-beating-synth-change pair-id param-key synth-index value]))
-        slider (fn [{:keys [label param-key default-value synth-index min max step]
+        slider (fn [{:keys [label param-key value
+                            synth-index min max step]
                      :or {min 0 max 1 step 0.01}}]
                  (let [list (str label synth-index)
                        list-intervals (/ (- max min) 10)]
                    [:label
                     [:small {:style {:display "inline-block" :width 80}} label]
-                    [:input {:type "range"
+                    [:input {:style {:width 260}
+                             :type "range"
                              :list list
                              :min min
                              :max max
-                             :default-value default-value
+                             :value value
                              :step step
                              :on-change (fn [ev]
                                           (update-fn
@@ -1000,69 +1002,66 @@
                                            (-> ev .-target .-valueAsNumber)))}]
                     [:datalist {:id list}
                      (map (fn [i] [:option {:key i :value i}])
-                          (range 0 (* 11 list-intervals) list-intervals))]]))]
+                          (range 0 (* 10 list-intervals) list-intervals))]]))
+        synth-pairs-params (get-in @(rf/subscribe [::synth-pairs-params])
+                                   [pair-id])
+        synth-config (fn [{:keys [root-hz degree-x ratio-x-partial ratio-x synth-index params]}]
+                       (let [{:keys [amp pan lfo-depth]} params]
+                         [:div {:style {:display "flex" :flex-direction "column"}}
+                          [:div
+                           [:div "degree: " degree-x ", ratio: " (eu/make-readable ratio-x)]
+                           [:div
+                            "partial: " (eu/make-readable ratio-x-partial)
+                            ", freq: " (pretty-float (* root-hz
+                                                        (eu/->native ratio-x)
+                                                        (eu/->native ratio-x-partial)))
+                            "hz"]]
+
+                          (slider {:label "Amp"
+                                   :param-key :amp
+                                   :min 0
+                                   :max 0.125
+                                   :step 0.001
+                                   :value (or amp (Tone/dbToGain -24))
+                                   :synth-index synth-index})
+                          (slider {:label "Pan"
+                                   :param-key :pan
+                                   :value (or pan 0.5)
+                                   :synth-index synth-index})
+                          (slider {:label "LFO Depth"
+                                   :param-key :lfo-depth
+                                   :value (or lfo-depth 0)
+                                   :synth-index synth-index})
+                          (lfo-freq-select synth-index pair-id update-fn)]))]
     (when pair-id
-      (modal open?
-             (fn [] (rf/dispatch [::toggle-beating-synth-controls]))
-             [:div
-              [:h3 {:style {:display "flex" :justify-content "center" :align-items "center"}}
-               (beat-factors-hiccup beat-factors) ": " (pretty-float hz) "hz"]
-              [:div {:style {:display "flex"
-                             :justify-content "space-between"
-                             :gap 16}}
+      (modal
+       {:open? open?
+        :close-fn (fn [] (rf/dispatch [::toggle-beating-synth-controls]))
+        :max-width "600px"
+        :children [:div
+                   [:h3 {:style {:display "flex" :justify-content "center" :align-items "center"}}
+                    (beat-factors-hiccup beat-factors) ": " (pretty-float hz) "hz"]
+                   [:div {:style {:display "flex"
+                                  :justify-content "space-between"
+                                  :gap 16
+                                  :margin-bottom 32}}
 
-               [:div {:style {:display "flex" :flex-direction "column"}}
-                [:div
-                 [:div "degree: " degree-1 ", ratio: " (eu/make-readable ratio-1)]
-                 [:div
-                  "partial: " (eu/make-readable ratio-1-partial)
-                  ", freq: " (pretty-float (* root-hz
-                                              (eu/->native ratio-1)
-                                              (eu/->native ratio-1-partial)))
-                  "hz"]]
-                (slider {:label "Amp"
-                         :param-key :amp
-                         :min 0
-                         :max 0.5
-                         :default-value (Tone/dbToGain -32)
-                         :synth-index 0})
-                (slider {:label "Pan"
-                         :param-key :pan
-                         :default-value 0.5
-                         :synth-index 0})
-                (slider {:label "LFO Depth"
-                         :param-key :lfo-depth
-                         :default-value 0
-                         :synth-index 0})
-                (lfo-freq-select 0 pair-id update-fn)]
-               [:div {:style {:display "flex" :flex-direction "column"}}
-                [:div
-                 [:div "degree: " degree-2 ", ratio: " (eu/make-readable ratio-2)]
-                 [:div
-                  "partial: " (eu/make-readable ratio-2-partial)
-                  ", freq: " (pretty-float (* root-hz
-                                              (eu/->native ratio-2)
-                                              (eu/->native ratio-2-partial)))
-                  "hz"]]
-                (slider {:label "Amp"
-                         :param-key :amp
-                         :min 0
-                         :max 0.5 ;; -6db
-                         :default-value (Tone/dbToGain -32)
-                         :synth-index 1})
-                (slider {:label "Pan"
-                         :param-key :pan
-                         :default-value 0.5
-                         :synth-index 1})
-                (slider {:label "LFO Depth"
-                         :param-key :lfo-depth
-                         :default-value 0
-                         :synth-index 1})
-                (lfo-freq-select 1 pair-id update-fn)]]
+                    (synth-config {:root-hz root-hz
+                                   :degree-x degree-1
+                                   :ratio-x-partial ratio-1-partial
+                                   :ratio-x ratio-1
+                                   :synth-index 0
+                                   :params (nth synth-pairs-params 0)})
+                    (synth-config {:root-hz root-hz
+                                   :degree-x degree-2
+                                   :ratio-x-partial ratio-2-partial
+                                   :ratio-x ratio-2
+                                   :synth-index 1
+                                   :params (nth synth-pairs-params 1)})]
 
-              [:div {:style {:display "flex" :justify-content "center" :gap 32}}
-               [:button {:on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
-                (if playing? "Stop Synth" "Start Synth")]]]))))
+                   [:div {:style {:display "flex" :justify-content "center" :gap 32}}
+                    [:button {:on-click (fn [] (rf/dispatch [::toggle-harmonic-pair-synth pair-data]))}
+                     (if playing? "Stop Synth" "Start Synth")]]]}))))
 
 (defn main []
   (let [beat-data @(rf/subscribe [::beat-data])]

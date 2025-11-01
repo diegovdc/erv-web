@@ -215,12 +215,12 @@
     (let [cps (+all-subcps cps*)]
       [:div
        [:h1 "Analysis"]
-       (modal @modal-data
-              (fn []
-                (reset! modal-data nil)
-                (reset! supersets-page 0)
-                (reset! subsets-page 0))
-              (make-subcps-details @modal-data))
+       (modal {:open? @modal-data
+               :close-fn (fn []
+                           (reset! modal-data nil)
+                           (reset! supersets-page 0)
+                           (reset! subsets-page 0))
+               :children (make-subcps-details @modal-data)})
        (factor-filters-input)
        (degrees-filters-input)
        [:h2 "Subsets"]
