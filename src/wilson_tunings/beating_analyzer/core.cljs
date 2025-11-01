@@ -1066,7 +1066,12 @@
 (defn main []
   (let [beat-data @(rf/subscribe [::beat-data])]
 
-    [:div [:h1 "Beating Analyzer"]
+    [:div
+     [:style "html {
+background: white;
+filter: invert(1);
+}"]
+     [:h1 "Beating Analyzer"]
      (ratios-input)
 
      (when (seq beat-data)
